@@ -149,6 +149,9 @@ public class Rectangle {
     public void Set0(int i) {
         TL = i;
     }
+    public NullableInt Get0() {
+        return TL;
+    }
     // ----------- TopLeft ----------- \\
     
     // ----------- TopRight ----------- \\
@@ -157,6 +160,9 @@ public class Rectangle {
     }
     public void Set1(int i) {
         TR = i;
+    }
+    public NullableInt Get1() {
+        return TR;
     }
     // ----------- TopRight ----------- \\
     
@@ -167,6 +173,9 @@ public class Rectangle {
     public void Set2(int i) {
         BR = i;
     }
+    public NullableInt Get2() {
+        return BR;
+    }
     // ----------- BottomRight ----------- \\
     
     // ----------- BottomRight ----------- \\
@@ -175,6 +184,9 @@ public class Rectangle {
     }
     public void Set3(int i) {
         BL = i;
+    }
+    public NullableInt Get3() {
+        return BL;
     }
     // ----------- BottomRight ----------- \\
 
@@ -427,27 +439,48 @@ public class Trixel : MonoBehaviour {
                     if (tl != null && tr != null) {
                         // print($"top edge created");
                         // top
-                        var newTop = new Rectangle(null, null, tl, tr);
-                        top.Add(newTop);
-                        rectangles.Add(newTop); 
+                        var rightEdge = ConnectedEdge(right, tl);
+                        var leftEdge = ConnectedEdge(left, tr);
+
+                        if (rightEdge != null && leftEdge != null) {
+                            rectangles.Remove(rightEdge);
+                            rectangles.Remove(leftEdge);
+                            
+                            var newTop = new Rectangle(null, null, tl, tr);
+                            rectangles.Add(newTop);
+                        }
+                        else {
+                            if (rightEdge != null) {
+                                rightEdge.Set2(tr.Value());
+                                right.Remove(rightEdge);
+                            }
+                            if (leftEdge != null) {
+                                leftEdge.Set3(tl.Value());
+                                left.Remove(leftEdge);
+                            }  
+                        } 
+                        // no connections
+                        if(rightEdge == null && leftEdge == null) {
+                            var newTop = new Rectangle(null, null, tl, tr);
+                            top.Add(newTop);
+                            rectangles.Add(newTop);
+                        }
                     }
                     if (bl != null && br != null) {
                         // print($"bottom edge created");
                         // bottom
-
                         var newBottom = new Rectangle(bl, br, null, null);
                         bottom.Add(newBottom);
                         rectangles.Add(newBottom);
                     }
                     if (tl != null && bl != null) {
-                        // print($"left edge created");
                         // left
-                        
-                        // left, right or top edge is connected
+                        // left, look for bottoms, rights or tops connected
                         var bottomEdge = ConnectedEdge(bottom, tl);
-
                         if (bottomEdge != null) {
-                            print($"there's a bottom edge connected broooother");
+                            // print($"there's a bottom edge connected broooother");
+                            bottomEdge.Set2(bl.Value());
+                            bottom.Remove(bottomEdge);
                         }
                         else {
                             var newLeft = new Rectangle(null, tl, null, bl);
@@ -456,12 +489,25 @@ public class Trixel : MonoBehaviour {
                         }
                        
                     }
+                    // right edge cases
                     if (tr != null && br != null) {
                         // print($"right edge created");
                         // right
-                        var newRight = new Rectangle(tr, null, br, null);
-                        right.Add(newRight);
-                        rectangles.Add(newRight); 
+                        
+                        // left, look for bottoms, rights or tops connected
+                        var bottomEdge = ConnectedEdge(bottom, tr);
+                        
+                        if (bottomEdge != null) {
+                            // print($"there's a bottom edge connected broooother");
+                            bottomEdge.Set3(br.Value());
+                            bottom.Remove(bottomEdge);
+                        }
+                        else {
+                            var newRight = new Rectangle(tr, null, br, null);
+                            right.Add(newRight);
+                            rectangles.Add(newRight);
+                        }
+                      
                     }
                 }
             }
