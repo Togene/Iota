@@ -368,6 +368,12 @@ public class Trixel : MonoBehaviour {
     }
 
     public Rectangle ConnectedEdge(List<Rectangle> edges, NullableInt i) {
+        
+        if (i == null) {
+            print($"index is null");
+            return null;
+        }
+        
         var verts = Vertices.Values.ToArray();
         
         foreach (var e in edges) {
@@ -403,7 +409,6 @@ public class Trixel : MonoBehaviour {
         int     flipFlop   = 1;
     
         List<Rectangle> top = new (), bottom = new (), left = new (), right = new ();
-            
         while (!shadowDone) {
             if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
                 walkVector.x   = - resolutionOffset.x;
@@ -436,91 +441,96 @@ public class Trixel : MonoBehaviour {
                         bl = indiceMap[3];
                     }
                     
-                    // top edge cases
+                    // -------------------- top edge cases --------------------
                     if (tl != null && tr != null) {
-                        // print($"top edge created");
-                        var rightEdge = ConnectedEdge(right, tl);
-                        var leftEdge = ConnectedEdge(left, tr);
-                        
-                        // both on either side connected to top edge
-                        if (rightEdge != null && leftEdge != null) {
-                            rectangles.Remove(rightEdge);
-                            rectangles.Remove(leftEdge);
-                            
-                            var newTop = new Rectangle(rightEdge.Get0(), leftEdge.Get1(), tl, tr);
-                            rectangles.Add(newTop);
-                        }
-                        else {
-                            if (rightEdge != null) {
-                                rightEdge.Set2(tr.Value());
-                                right.Remove(rightEdge);
-                            }
-                            if (leftEdge != null) {
-                                leftEdge.Set3(tl.Value());
-                                left.Remove(leftEdge);
-                            }  
-                        } 
-                        // no connections
-                        if(rightEdge == null && leftEdge == null) {
-                            var newTop = new Rectangle(null, null, tl, tr);
-                            top.Add(newTop);
-                            rectangles.Add(newTop);
-                        }
+                        // print($"top edge");
+                        var newTop = new Rectangle(null, null, tl, tr);
+                        top.Add(newTop);
+                        rectangles.Add(newTop);
                     }
-                    // bottom edge cases
+                    // -------------------- top edge cases --------------------
+                    
+                    // -------------------- bottom edge cases --------------------
                     if (bl != null && br != null) {
-                        // print($"bottom edge created");
-                        // bottom
+                        // print($"bottom edge");
                         var newBottom = new Rectangle(bl, br, null, null);
                         bottom.Add(newBottom);
                         rectangles.Add(newBottom);
                     }
+                    // -------------------- bottom edge cases --------------------
+                    
+                    // -------------------- left edge cases --------------------
                     if (tl != null && bl != null) {
-                        // left
-                        // left, look for bottoms, rights or tops connected
-                        var bottomEdge = ConnectedEdge(bottom, tl);
-                        if (bottomEdge != null) {
-                            // print($"there's a bottom edge connected broooother");
-                            bottomEdge.Set2(bl.Value());
-                            bottom.Remove(bottomEdge);
-                        }
-                        else {
-                            var newLeft = new Rectangle(null, tl, null, bl);
-                            left.Add(newLeft);
-                            rectangles.Add(newLeft);
-                        }
-                       
+                        // print($"left edge");
+                        var newLeft = new Rectangle(null, tl, null, bl);
+                        left.Add(newLeft);
+                        rectangles.Add(newLeft);
                     }
-                    // right edge cases
+                    // -------------------- left edge cases --------------------
+                    
+                    // -------------------- right edge cases --------------------
                     if (tr != null && br != null) {
-                        // print($"right edge created");
-                        // right
-                        
-                        // left, look for bottoms, rights or tops connected
-                        var bottomEdge = ConnectedEdge(bottom, tr);
-                        
-                        if (bottomEdge != null) {
-                            // print($"there's a bottom edge connected broooother");
-                            bottomEdge.Set3(br.Value());
-                            bottom.Remove(bottomEdge);
-                        }
-                        else {
-                            var newRight = new Rectangle(tr, null, br, null);
-                            right.Add(newRight);
-                            rectangles.Add(newRight);
-                        }
-                      
+                        // print($"right edge");
+                        var newRight = new Rectangle(tr, null, br, null);
+                        right.Add(newRight);
+                        rectangles.Add(newRight);
                     }
+                    // -------------------- right edge cases --------------------
                 }
             }
-        
             walkVector.x += 1 * flipFlop;
             yield return new WaitForSeconds(RenderSpeed);
         }
         
+        // null. null, tl, tr
+        foreach (var t in top) {
+            var rightEdge = ConnectedEdge(right, t.Get3());
+            var leftEdge = ConnectedEdge(left, t.Get2());
+            
+            if (rightEdge != null) {
+                t.Set0(rightEdge.Get0().Value());
+                rectangles.Remove(rightEdge);
+            }
+            if (leftEdge != null) {
+                t.Set1(leftEdge.Get1().Value());
+                rectangles.Remove(leftEdge);
+            }
+        }
+        
+        // bl, br, null, null
+        foreach (var b in bottom) {
+            var rightEdge = ConnectedEdge(right, b.Get0());
+            var leftEdge  = ConnectedEdge(left, b.Get1());
+            
+            if (rightEdge != null) {
+                b.Set3(rightEdge.Get3().Value());
+                rectangles.Remove(rightEdge);
+            }
+            if (leftEdge != null) {
+                b.Set2(leftEdge.Get2().Value());
+                rectangles.Remove(leftEdge);
+            }
+        }
+        
+        // // null, tl, null, bl
+        // foreach (var l in left) {
+        //     var bottomEdge = ConnectedEdge(top, l.Get1());
+        //     var topEdge = ConnectedEdge(bottom, l.Get2());
+        //     
+        //     if (bottomEdge != null) {
+        //         print($"bottom connected to left?");
+        //         l.Set0(bottomEdge.Get3().Value());
+        //         rectangles.Remove(bottomEdge);
+        //     }
+        //     if (topEdge != null) {
+        //         print($"top connected to left?");
+        //         l.Set3(topEdge.Get0().Value());
+        //         rectangles.Remove(topEdge);
+        //     }
+        // }
+        
         walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
         flipFlop = 1;
-
         if (rectangles.Count == 0) {
             rectangles.Add(new Rectangle());
         }
