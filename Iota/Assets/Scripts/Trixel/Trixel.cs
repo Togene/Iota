@@ -369,9 +369,6 @@ public class Trixel : MonoBehaviour {
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
         int     flipFlop   = 1;
         
-        // starting rectangle
-        // rectangles.Add(new Rectangle());
-        Dictionary<int, int> oldIndices = new Dictionary<int, int>();
         while (!shadowDone) {
             if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
                 walkVector.x   = - resolutionOffset.x;
@@ -387,13 +384,8 @@ public class Trixel : MonoBehaviour {
                 head  = _points[Helpers.VectorKey(walkVector)];
                 _head = head.Position;
                 
-         
                 var indiceMap = GenerateVerticesByRule(head, true);
-                if (oldIndices.Count != 0) {
-                    indiceMap.AddRange(oldIndices);
-                    oldIndices.Clear();
-                }
-                
+
                 if (indiceMap.Count != 0) {
                     NullableInt tl = null, tr = null, bl = null, br = null;
                     
@@ -410,69 +402,21 @@ public class Trixel : MonoBehaviour {
                         bl = indiceMap[3];
                     }
                     
-                    switch (indiceMap.Count) {
-                        case 1:
-                            print($"need to carry on the journey");
-                            oldIndices.AddRange(indiceMap);
-                            break;
-                        case 2:
-                            oldIndices.AddRange(indiceMap);
-                            break;
-                        case 3:
-                            oldIndices.AddRange(indiceMap);
-                            // if (tl == null) {
-                            //     // tr, br, bl
-                            //     // right
-                            //     rectangles.Add(new Rectangle(tr, null, br, null)); 
-                            //     // bottom
-                            //     rectangles.Add(new Rectangle(bl, br, null, null));
-                            //     break;
-                            // }
-                            // if (bl == null) {
-                            //     // tl, tr, br
-                            //     // top
-                            //     rectangles.Add(new Rectangle(null, null, tl, tr)); 
-                            //     // right
-                            //     rectangles.Add(new Rectangle(tr, null, br, null));
-                            //     break;
-                            // }
-                            // if (tr == null) {
-                            //     // tl, bl, br
-                            //     // bottom
-                            //     rectangles.Add(new Rectangle(bl, br, null, null));
-                            //     // left
-                            //     rectangles.Add(new Rectangle(null, tl, null, bl));
-                            //     break;
-                            // }
-                            // if (br == null) {
-                            //     // tl, tr, bl
-                            //     // top
-                            //     rectangles.Add(new Rectangle(null, null, tl, tr)); 
-                            //     // left
-                            //     rectangles.Add(new Rectangle(null, tl, null, bl));
-                            // }
-                            break;
-                        case 4:
-                            print($"4 new rectangle");
-                            // tl, tr, bl, br
-                           
-                            if (_points.Forward(head)) {
-                                // top
-                                rectangles.Add(new Rectangle(null, null, tl, tr)); 
-                            }
-                            if (_points.Back(head)) {
-                                // bottom
-                                rectangles.Add(new Rectangle(bl, br, null, null));
-                            }
-                            if (_points.Left(head)) {
-                                // left
-                                rectangles.Add(new Rectangle(null, tl, null, bl));
-                            }
-                            if (_points.Right(head)) {
-                                // right
-                                rectangles.Add(new Rectangle(tr, null, br, null)); 
-                            }
-                            break;
+                    if (tl != null && tr != null) {
+                        // top
+                        rectangles.Add(new Rectangle(null, null, tl, tr)); 
+                    }
+                    if (bl != null && br != null) {
+                        // bottom
+                        rectangles.Add(new Rectangle(bl, br, null, null));
+                    }
+                    if (tl != null && bl != null) {
+                        // left
+                        rectangles.Add(new Rectangle(null, tl, null, bl));
+                    }
+                    if (tr != null && br != null) {
+                        // right
+                        rectangles.Add(new Rectangle(tr, null, br, null)); 
                     }
                 }
             }
