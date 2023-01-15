@@ -314,7 +314,7 @@ public class Trixel : MonoBehaviour {
     //     0 + step, -- Top Left
     //     3 + step, -- Bottom Left
     //     2 + step  -- Bottom Right
-    Dictionary<int, int> GenerateVerticesByRule(Point p, bool inverse) {
+    Dictionary<int, int> GenerateVerticesByRule(Point p, bool inverse, bool duplicate = false) {
         
         Dictionary<int, int> indiceMap = new();
 
@@ -326,33 +326,44 @@ public class Trixel : MonoBehaviour {
 
         // top left
         if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, true);
+            int index = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, duplicate);
             if (index != -1) {
                 indiceMap.Add(0, index);
             }
         }
         // top right
         if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2, true);
+            int index = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2, duplicate);
             if (index != -1) {
                 indiceMap.Add(1, index);
             }
         }
         // bottom right
         if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, true);
+            int index = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, duplicate);
             if (index != -1) {
                 indiceMap.Add(2, index);
             }
         }
         // bottom left
         if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2, true);
+            int index = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2, duplicate);
             if (index != -1) {
                 indiceMap.Add(3, index);
             }
         }
         return indiceMap;
+    }
+
+    public Rectangle ConnectedEdge(List<Rectangle> edges, NullableInt i) {
+        var verts = Vertices.Values.ToArray();
+        
+        foreach (var e in edges) {
+            if (e.Contains(verts, verts[i.Value()])) {
+                return e;
+            }
+        }
+        return null;
     }
     
     IEnumerator LittleBabysMarchingCubes() {
@@ -378,7 +389,9 @@ public class Trixel : MonoBehaviour {
         
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
         int     flipFlop   = 1;
-        
+    
+        List<Rectangle> top = new (), bottom = new (), left = new (), right = new ();
+            
         while (!shadowDone) {
             if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
                 walkVector.x   = - resolutionOffset.x;
@@ -386,7 +399,6 @@ public class Trixel : MonoBehaviour {
             }
         
             if (walkVector.z < -resolutionOffset.z) {
-                print($"Completed Clear");
                 shadowDone = true;
             }
         
@@ -394,7 +406,7 @@ public class Trixel : MonoBehaviour {
                 head  = _points[Helpers.VectorKey(walkVector)];
                 _head = head.Position;
                 
-                var indiceMap = GenerateVerticesByRule(head, true);
+                var indiceMap = GenerateVerticesByRule(head, true, true);
 
                 if (indiceMap.Count != 0) {
                     NullableInt tl = null, tr = null, bl = null, br = null;
@@ -412,22 +424,44 @@ public class Trixel : MonoBehaviour {
                         bl = indiceMap[3];
                     }
                     
-                    
                     if (tl != null && tr != null) {
+                        // print($"top edge created");
                         // top
-                        rectangles.Add(new Rectangle(null, null, tl, tr)); 
+                        var newTop = new Rectangle(null, null, tl, tr);
+                        top.Add(newTop);
+                        rectangles.Add(newTop); 
                     }
                     if (bl != null && br != null) {
+                        // print($"bottom edge created");
                         // bottom
-                        rectangles.Add(new Rectangle(bl, br, null, null));
+
+                        var newBottom = new Rectangle(bl, br, null, null);
+                        bottom.Add(newBottom);
+                        rectangles.Add(newBottom);
                     }
                     if (tl != null && bl != null) {
+                        // print($"left edge created");
                         // left
-                        rectangles.Add(new Rectangle(null, tl, null, bl));
+                        
+                        // left, right or top edge is connected
+                        var bottomEdge = ConnectedEdge(bottom, tl);
+
+                        if (bottomEdge != null) {
+                            print($"there's a bottom edge connected broooother");
+                        }
+                        else {
+                            var newLeft = new Rectangle(null, tl, null, bl);
+                            left.Add(newLeft);
+                            rectangles.Add(newLeft);
+                        }
+                       
                     }
                     if (tr != null && br != null) {
+                        // print($"right edge created");
                         // right
-                        rectangles.Add(new Rectangle(tr, null, br, null)); 
+                        var newRight = new Rectangle(tr, null, br, null);
+                        right.Add(newRight);
+                        rectangles.Add(newRight); 
                     }
                 }
             }
@@ -450,7 +484,6 @@ public class Trixel : MonoBehaviour {
             }
 
             if (walkVector.z < -resolutionOffset.z) {
-                print($"Completed Clear");
                 done = true;
             }
 
