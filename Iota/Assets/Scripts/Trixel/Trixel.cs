@@ -178,6 +178,13 @@ public class Rectangle {
     }
     // ----------- BottomRight ----------- \\
 
+    public bool Contains(Vector3[] v, Vector3 a) {
+        return TL != null && v[TL.Value()].Equals(a) ||
+               TR != null && v[TR.Value()].Equals(a) ||
+               BR != null && v[BR.Value()].Equals(a) ||
+               BL != null && v[BL.Value()].Equals(a);
+    }
+    
     public bool TopIsStraight(Vector3[] v) {
         return Helpers.IsStraight(v[TL.Value()], v[TR.Value()], Vector3.right);
     }
@@ -280,12 +287,15 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    int AddVertice(Vector3 v) {
+    int AddVertice(Vector3 v, bool useDuplicate = false) {
         if (!Vertices.ContainsKey(Helpers.VectorKey(v))) {
             Vertices.Add(Helpers.VectorKey(v), v);
             return Vertices.Count - 1;
         }
-        return -1;
+        if (!useDuplicate) {
+            return -1;
+        }
+        return Vertices.Values.ToList().IndexOf(v);
     }
 
     bool VerticeCondition(bool a, bool b, bool c, bool invert) {
@@ -316,28 +326,28 @@ public class Trixel : MonoBehaviour {
 
         // top left
         if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
+            int index = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, true);
             if (index != -1) {
                 indiceMap.Add(0, index);
             }
         }
         // top right
         if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
+            int index = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2, true);
             if (index != -1) {
                 indiceMap.Add(1, index);
             }
         }
         // bottom right
         if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
+            int index = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, true);
             if (index != -1) {
                 indiceMap.Add(2, index);
             }
         }
         // bottom left
         if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
+            int index = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2, true);
             if (index != -1) {
                 indiceMap.Add(3, index);
             }
@@ -401,6 +411,7 @@ public class Trixel : MonoBehaviour {
                     if (indiceMap.ContainsKey(3)) {
                         bl = indiceMap[3];
                     }
+                    
                     
                     if (tl != null && tr != null) {
                         // top
