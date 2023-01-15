@@ -420,7 +420,7 @@ public class Trixel : MonoBehaviour {
                 
                 var indiceMap = GenerateVerticesByRule(head, true, true);
 
-                if (indiceMap.Count != 0) {
+                if (indiceMap.Count > 1) {
                     NullableInt tl = null, tr = null, bl = null, br = null;
                     
                     if (indiceMap.ContainsKey(0)) {
@@ -436,17 +436,18 @@ public class Trixel : MonoBehaviour {
                         bl = indiceMap[3];
                     }
                     
+                    // top edge cases
                     if (tl != null && tr != null) {
                         // print($"top edge created");
-                        // top
                         var rightEdge = ConnectedEdge(right, tl);
                         var leftEdge = ConnectedEdge(left, tr);
-
+                        
+                        // both on either side connected to top edge
                         if (rightEdge != null && leftEdge != null) {
                             rectangles.Remove(rightEdge);
                             rectangles.Remove(leftEdge);
                             
-                            var newTop = new Rectangle(null, null, tl, tr);
+                            var newTop = new Rectangle(rightEdge.Get0(), leftEdge.Get1(), tl, tr);
                             rectangles.Add(newTop);
                         }
                         else {
@@ -466,6 +467,7 @@ public class Trixel : MonoBehaviour {
                             rectangles.Add(newTop);
                         }
                     }
+                    // bottom edge cases
                     if (bl != null && br != null) {
                         // print($"bottom edge created");
                         // bottom
