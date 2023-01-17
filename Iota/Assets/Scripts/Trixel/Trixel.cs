@@ -127,129 +127,6 @@ public class NullableInt {
     public override                 string ToString()  => $"{I}";
 }
 
-public class Rectangle {
-    private NullableInt TL {get; set;}
-    private NullableInt TR {get; set;}
-    private NullableInt BL {get; set;}
-    private NullableInt BR {get; set;}
-
-    public Rectangle() { }
-    
-    public Rectangle(NullableInt tl, NullableInt tr, NullableInt bl, NullableInt br) {
-        TL = tl;
-        TR = tr;
-        BL = bl;
-        BR = br;
-    }
-    
-    // ----------- TopLeft ----------- \\
-    public bool Has0() {
-        return TL != null;
-    }
-    public void Set0(int i) {
-        TL = i;
-    }
-    public NullableInt Get0() {
-        return TL;
-    }
-    // ----------- TopLeft ----------- \\
-    
-    // ----------- TopRight ----------- \\
-    public bool Has1() {
-        return TR != null;
-    }
-    public void Set1(int i) {
-        TR = i;
-    }
-    public NullableInt Get1() {
-        return TR;
-    }
-    // ----------- TopRight ----------- \\
-    
-    // ----------- BottomRight ----------- \\
-    public bool Has2() {
-        return BR != null;
-    }
-    public void Set2(int i) {
-        BR = i;
-    }
-    public NullableInt Get2() {
-        return BR;
-    }
-    // ----------- BottomRight ----------- \\
-    
-    // ----------- BottomRight ----------- \\
-    public bool Has3() {
-        return BL != null;
-    }
-    public void Set3(int i) {
-        BL = i;
-    }
-    public NullableInt Get3() {
-        return BL;
-    }
-    // ----------- BottomRight ----------- \\
-
-    public bool Contains(Vector3[] v, Vector3 a) {
-        return TL != null && v[TL.Value()].Equals(a) ||
-               TR != null && v[TR.Value()].Equals(a) ||
-               BR != null && v[BR.Value()].Equals(a) ||
-               BL != null && v[BL.Value()].Equals(a);
-    }
-    
-    public bool TopIsStraight(Vector3[] v) {
-        return Helpers.IsStraight(v[TL.Value()], v[TR.Value()], Vector3.right);
-    }
-    public bool BottomIsStraight(Vector3[] v) {
-        return Helpers.IsStraight(v[BL.Value()], v[BR.Value()], Vector3.right);
-    }
-    public bool RightIsStraight(Vector3[] v) {
-        return Helpers.IsStraight(v[TR.Value()], v[BR.Value()], Vector3.right);
-    }
-    public bool LeftIsStraight(Vector3[] v) {
-        return Helpers.IsStraight(v[BL.Value()], v[TL.Value()], Vector3.right);
-    }
-
-    public Rectangle[] GetOpenFaces(Vector3[] v) {
-        List<Rectangle> newRects = new List<Rectangle>();
-        
-        if (!TopIsStraight(v)) { // make a left
-            newRects.Add(new Rectangle(null, null, TL, TR));
-        }
-        if (!BottomIsStraight(v)) { // make a right
-            newRects.Add(new Rectangle(BL, BR, null, null));
-        }
-        if (!LeftIsStraight(v)) { // make a top
-            newRects.Add(new Rectangle(TL, BL, null, null));
-        }
-        if (!RightIsStraight(v)) { // make a top
-            newRects.Add(new Rectangle(BR, TR, null, null));
-        }
-        return newRects.ToArray();
-    }
-    
-    public bool Complete(Vector3[] v) {
-        return TopIsStraight(v) && BottomIsStraight(v) && LeftIsStraight(v) && RightIsStraight(v);
-    }
-    
-    public bool Connected() {
-        return TL != null && TR != null && BL != null && BR != null;
-    }
-
-    public bool CompleteAndConnected(Vector3[] v) {
-        return Connected() && Complete(v);
-    }
-
-    public int[] Indices() {
-        if (Connected()){
-            return new[] {TL.Value(), TR.Value(), BR.Value(), TL.Value(), BR.Value(), BL.Value()};
-        }
-        return new int[] {};
-    }
-    
-    public override string ToString() => $"{TL}-{TR}-{BR}-{BL}";
-}
-
 public class Trixel : MonoBehaviour {
     [Range(2, 16)] public int                       Resolution;
     [Range(0.0f, 16.0f)] public float               RenderSpeed;
@@ -367,23 +244,6 @@ public class Trixel : MonoBehaviour {
         return indiceMap;
     }
 
-    public Rectangle ConnectedEdge(List<Rectangle> edges, NullableInt i) {
-        
-        if (i == null) {
-            print($"index is null");
-            return null;
-        }
-        
-        var verts = Vertices.Values.ToArray();
-        
-        foreach (var e in edges) {
-            if (e.Contains(verts, verts[i.Value()])) {
-                return e;
-            }
-        }
-        return null;
-    }
-    
     IEnumerator LittleBabysMarchingCubes() {
         Helpers.ClearConsole();
         
@@ -398,7 +258,14 @@ public class Trixel : MonoBehaviour {
         Indices        = new ();
         _mesh          = new Mesh();
         
-        List<Rectangle> rectangles = new ();
+        // final rectangles
+        rectangles = new List<Rectangle>();
+        
+        // edges
+        top        = new (); 
+        bottom     = new (); 
+        left       = new (); 
+        right      = new ();
         
         // stepping top x-y
         bool  done = false;
@@ -408,7 +275,8 @@ public class Trixel : MonoBehaviour {
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
         int     flipFlop   = 1;
     
-        List<Rectangle> top = new (), bottom = new (), left = new (), right = new ();
+        
+        Queue<Tuple<int, int>> indiceQ = new Queue<Tuple<int, int>>();
         while (!shadowDone) {
             if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
                 walkVector.x   = - resolutionOffset.x;
@@ -422,76 +290,83 @@ public class Trixel : MonoBehaviour {
             if (_points.Contains(walkVector) && !_points.IsActive(walkVector)) {
                 head  = _points[Helpers.VectorKey(walkVector)];
                 _head = head.Position;
-                
+
                 var indiceMap = GenerateVerticesByRule(head, true, true);
+                
+                if (indiceQ.Count != 0) {
+                    // print($"Que - {indiceQ.Count}");
+                    var indicePair = indiceQ.Dequeue();
+                    
+                    if (indiceMap.ContainsKey(indicePair.Item1)){
+                        print($"ze-fuck?");
+                    }
+                    else {
+                        indiceMap.Add(indicePair.Item1, indicePair.Item2);
+                    }
+                }
 
                 if (indiceMap.Count > 1) {
-                    NullableInt tl = null, tr = null, bl = null, br = null;
-                    
-                    if (indiceMap.ContainsKey(0)) {
-                        tl = indiceMap[0];
+                    CreateEdges(indiceMap);
+                }
+                else {
+                    foreach (var indice in indiceMap) {
+                        print($"# of indices {indiceMap.Count}");
+                        indiceQ.Enqueue(new Tuple<int, int>(indice.Key, indice.Value));
+                        break;
                     }
-                    if (indiceMap.ContainsKey(1)) {
-                        tr = indiceMap[1];
-                    }
-                    if (indiceMap.ContainsKey(2)) {
-                        br = indiceMap[2];
-                    }
-                    if (indiceMap.ContainsKey(3)) {
-                        bl = indiceMap[3];
-                    }
-                    
-                    // -------------------- top edge cases --------------------
-                    if (tl != null && tr != null) {
-                        // print($"top edge");
-                        var newTop = new Rectangle(null, null, tl, tr);
-                        top.Add(newTop);
-                        rectangles.Add(newTop);
-                    }
-                    // -------------------- top edge cases --------------------
-                    
-                    // -------------------- bottom edge cases --------------------
-                    if (bl != null && br != null) {
-                        // print($"bottom edge");
-                        var newBottom = new Rectangle(bl, br, null, null);
-                        bottom.Add(newBottom);
-                        rectangles.Add(newBottom);
-                    }
-                    // -------------------- bottom edge cases --------------------
-                    
-                    // -------------------- left edge cases --------------------
-                    if (tl != null && bl != null) {
-                        // print($"left edge");
-                        var newLeft = new Rectangle(null, tl, null, bl);
-                        left.Add(newLeft);
-                        rectangles.Add(newLeft);
-                    }
-                    // -------------------- left edge cases --------------------
-                    
-                    // -------------------- right edge cases --------------------
-                    if (tr != null && br != null) {
-                        // print($"right edge");
-                        var newRight = new Rectangle(tr, null, br, null);
-                        right.Add(newRight);
-                        rectangles.Add(newRight);
-                    }
-                    // -------------------- right edge cases --------------------
                 }
             }
             walkVector.x += 1 * flipFlop;
             yield return new WaitForSeconds(RenderSpeed);
         }
         
+        if (indiceQ.Count != 0) {
+            print($"que still buffered - {indiceQ.Count}");
+            var         indicePair = indiceQ.Dequeue();
+            NullableInt tl = null, tr = null, bl = null, br = null;
+            
+             if (indicePair.Item1 == 0) {
+                 tl = indicePair.Item2;
+             }
+             if (indicePair.Item1 == 1) {
+                 tr = indicePair.Item2;
+             }
+             if (indicePair.Item1 == 2) {
+                 br = indicePair.Item2;
+             }
+             if (indicePair.Item1 == 3) {
+                 bl = indicePair.Item2;
+             }
+             
+            foreach (var rect in rectangles.ToList()) {
+                if (rect.Type() == Edge.TOP) {
+                    if (br != null) {
+                        var newRight = new Rectangle(rect.Get2(), null, br, null);
+                        right.Add(newRight);
+                        rectangles.Add(newRight);
+                    }
+                }
+                if (rect.Type() == Edge.BOTTOM) {
+                }
+                if (rect.Type() == Edge.LEFT) {
+                }
+                if (rect.Type() == Edge.RIGHT) {
+                }
+            }
+        }
+        
         // null. null, tl, tr
         foreach (var t in top) {
             var rightEdge = ConnectedEdge(right, t.Get3());
-            var leftEdge = ConnectedEdge(left, t.Get2());
+            var leftEdge  = ConnectedEdge(left, t.Get2());
             
             if (rightEdge != null) {
+                print($"right edge connection");
                 t.Set0(rightEdge.Get0().Value());
                 rectangles.Remove(rightEdge);
             }
             if (leftEdge != null) {
+                print($"left edge connection");
                 t.Set1(leftEdge.Get1().Value());
                 rectangles.Remove(leftEdge);
             }
@@ -503,31 +378,44 @@ public class Trixel : MonoBehaviour {
             var leftEdge  = ConnectedEdge(left, b.Get1());
             
             if (rightEdge != null) {
+                var topEdge = ConnectedEdge(top, rightEdge.Get3());
+
+                if (topEdge != null) {
+                    b.Set2(topEdge.Get2().Value());
+                    rectangles.Remove(topEdge);
+                    top.Remove(topEdge);
+                }
+                
                 b.Set3(rightEdge.Get3().Value());
                 rectangles.Remove(rightEdge);
             }
             if (leftEdge != null) {
+                var topEdge = ConnectedEdge(top, leftEdge.Get2());
+
+                if (topEdge != null) {
+                    b.Set3(topEdge.Get3().Value());
+                    rectangles.Remove(topEdge);
+                    top.Remove(topEdge);
+                }
+                
                 b.Set2(leftEdge.Get2().Value());
                 rectangles.Remove(leftEdge);
             }
+            
+            if (top.Count != 0) {
+                foreach (var t in top) {
+                    print($"<color=#FF0000> left edge </color>");
+                    var newLeft = new Rectangle(null, b.Get0() , null, t.Get3());
+                    // left.Add(newLeft);
+                    rectangles.Add(newLeft);
+            
+                    print($"<color=#F0F000> right edge </color>");
+                    var newRight = new Rectangle(b.Get1(), null, t.Get2(), null);
+                    // right.Add(newRight);
+                    rectangles.Add(newRight);
+                }
+            }
         }
-        
-        // // null, tl, null, bl
-        // foreach (var l in left) {
-        //     var bottomEdge = ConnectedEdge(top, l.Get1());
-        //     var topEdge = ConnectedEdge(bottom, l.Get2());
-        //     
-        //     if (bottomEdge != null) {
-        //         print($"bottom connected to left?");
-        //         l.Set0(bottomEdge.Get3().Value());
-        //         rectangles.Remove(bottomEdge);
-        //     }
-        //     if (topEdge != null) {
-        //         print($"top connected to left?");
-        //         l.Set3(topEdge.Get0().Value());
-        //         rectangles.Remove(topEdge);
-        //     }
-        // }
         
         walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
         flipFlop = 1;
@@ -549,8 +437,15 @@ public class Trixel : MonoBehaviour {
                 head  = _points[Helpers.VectorKey(walkVector)];
                 _head = head.Position;
             
-                var indiceMap = GenerateVerticesByRule(head, false);
-                
+                var indiceMap = GenerateVerticesByRule(head, false, false);
+
+                // if (indiceMap.Count > 1) {
+                //     CreateEdges(indiceMap);
+                // }
+                // else {
+                //     
+                // }
+
                 if (indiceMap.Count != 0) {
                     if (rectangles.Count != 0) {
                         foreach (var rect in rectangles.ToList()) {
@@ -585,7 +480,7 @@ public class Trixel : MonoBehaviour {
             walkVector.x += 1 * flipFlop;
             yield return new WaitForSeconds(RenderSpeed);
         }
-        
+
         if (rectangles.Count != 0) {
             foreach (var rect in rectangles.ToList()) {
                 if (rect.CompleteAndConnected(Vertices.Values.ToArray())) {
