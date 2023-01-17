@@ -244,6 +244,38 @@ public class Trixel : MonoBehaviour {
         return indiceMap;
     }
 
+    List<Tuple<int, int>> Walk(ref Point head, bool inverse, bool duplicate) {
+        var indices = new List<Tuple<int, int>>();
+        
+        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
+        int     flipFlop   = 1;
+        bool    done       = false;
+        
+        while (!done) {
+            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
+                walkVector.x =  - resolutionOffset.x;
+                walkVector.z -= 1;
+            }
+        
+            if (walkVector.z < -resolutionOffset.z) {
+                done = true;
+            }
+        
+            if (_points.Contains(walkVector) && ((inverse) ? !_points.IsActive(walkVector) : _points.IsActive(walkVector))) {
+                head  = _points[Helpers.VectorKey(walkVector)];
+                _head = head.Position;
+
+                var newIndices = GenerateVerticesByRule(head, inverse, duplicate);
+                foreach (var pair in newIndices) {
+                    indices.Add(new Tuple<int, int>(pair.Key, pair.Value));
+                }
+            }
+            walkVector.x += 1 * flipFlop;
+        }
+
+        return indices;
+    }
+    
     IEnumerator LittleBabysMarchingCubes() {
         Helpers.ClearConsole();
         
@@ -251,247 +283,26 @@ public class Trixel : MonoBehaviour {
         
         // stores position key and indice
         Vertices       = new Dictionary<string, Vector3>();
-        // raw vertices
-        // Vertices          = 
         
         OffsetVertices = new Dictionary<string, Vector3>();
         Indices        = new ();
         _mesh          = new Mesh();
         
-        // final rectangles
-        rectangles = new List<Rectangle>();
-        
-        // edges
-        top        = new (); 
-        bottom     = new (); 
-        left       = new (); 
-        right      = new ();
-        
         // stepping top x-y
-        bool  done = false;
+       
         bool  shadowDone = false;
         Point head = new Point();
-        
-        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-        int     flipFlop   = 1;
-    
-        
-        Queue<Tuple<int, int>> indiceQ = new Queue<Tuple<int, int>>();
-        while (!shadowDone) {
-            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
-                walkVector.x   = - resolutionOffset.x;
-                walkVector.z -= 1;
-            }
-        
-            if (walkVector.z < -resolutionOffset.z) {
-                shadowDone = true;
-            }
-        
-            if (_points.Contains(walkVector) && !_points.IsActive(walkVector)) {
-                head  = _points[Helpers.VectorKey(walkVector)];
-                _head = head.Position;
 
-                var indiceMap = GenerateVerticesByRule(head, true, true);
-                
-                if (indiceQ.Count != 0) {
-                    // print($"Que - {indiceQ.Count}");
-                    var indicePair = indiceQ.Dequeue();
-                    
-                    if (indiceMap.ContainsKey(indicePair.Item1)){
-                        print($"ze-fuck?");
-                    }
-                    else {
-                        indiceMap.Add(indicePair.Item1, indicePair.Item2);
-                    }
-                }
+        var innerIndices = Walk(ref head, true, true);
 
-                if (indiceMap.Count > 1) {
-                    CreateEdges(indiceMap);
-                }
-                else {
-                    foreach (var indice in indiceMap) {
-                        print($"# of indices {indiceMap.Count}");
-                        indiceQ.Enqueue(new Tuple<int, int>(indice.Key, indice.Value));
-                        break;
-                    }
-                }
-            }
-            walkVector.x += 1 * flipFlop;
-            yield return new WaitForSeconds(RenderSpeed);
+        foreach (var tuple in innerIndices) {
+            print($"{tuple.Item1}{tuple.Item2}");
         }
         
-        if (indiceQ.Count != 0) {
-            print($"que still buffered - {indiceQ.Count}");
-            var         indicePair = indiceQ.Dequeue();
-            NullableInt tl = null, tr = null, bl = null, br = null;
-            
-             if (indicePair.Item1 == 0) {
-                 tl = indicePair.Item2;
-             }
-             if (indicePair.Item1 == 1) {
-                 tr = indicePair.Item2;
-             }
-             if (indicePair.Item1 == 2) {
-                 br = indicePair.Item2;
-             }
-             if (indicePair.Item1 == 3) {
-                 bl = indicePair.Item2;
-             }
-             
-            foreach (var rect in rectangles.ToList()) {
-                if (rect.Type() == Edge.TOP) {
-                    if (br != null) {
-                        var newRight = new Rectangle(rect.Get2(), null, br, null);
-                        right.Add(newRight);
-                        rectangles.Add(newRight);
-                    }
-                }
-                if (rect.Type() == Edge.BOTTOM) {
-                }
-                if (rect.Type() == Edge.LEFT) {
-                }
-                if (rect.Type() == Edge.RIGHT) {
-                }
-            }
-        }
+        var outerIndices = Walk(ref head, false, false);
         
-        // null. null, tl, tr
-        foreach (var t in top) {
-            var rightEdge = ConnectedEdge(right, t.Get3());
-            var leftEdge  = ConnectedEdge(left, t.Get2());
-            
-            if (rightEdge != null) {
-                print($"right edge connection");
-                t.Set0(rightEdge.Get0().Value());
-                rectangles.Remove(rightEdge);
-            }
-            if (leftEdge != null) {
-                print($"left edge connection");
-                t.Set1(leftEdge.Get1().Value());
-                rectangles.Remove(leftEdge);
-            }
-        }
-        
-        // bl, br, null, null
-        foreach (var b in bottom) {
-            var rightEdge = ConnectedEdge(right, b.Get0());
-            var leftEdge  = ConnectedEdge(left, b.Get1());
-            
-            if (rightEdge != null) {
-                var topEdge = ConnectedEdge(top, rightEdge.Get3());
-
-                if (topEdge != null) {
-                    b.Set2(topEdge.Get2().Value());
-                    rectangles.Remove(topEdge);
-                    top.Remove(topEdge);
-                }
-                
-                b.Set3(rightEdge.Get3().Value());
-                rectangles.Remove(rightEdge);
-            }
-            if (leftEdge != null) {
-                var topEdge = ConnectedEdge(top, leftEdge.Get2());
-
-                if (topEdge != null) {
-                    b.Set3(topEdge.Get3().Value());
-                    rectangles.Remove(topEdge);
-                    top.Remove(topEdge);
-                }
-                
-                b.Set2(leftEdge.Get2().Value());
-                rectangles.Remove(leftEdge);
-            }
-            
-            if (top.Count != 0) {
-                foreach (var t in top) {
-                    print($"<color=#FF0000> left edge </color>");
-                    var newLeft = new Rectangle(null, b.Get0() , null, t.Get3());
-                    // left.Add(newLeft);
-                    rectangles.Add(newLeft);
-            
-                    print($"<color=#F0F000> right edge </color>");
-                    var newRight = new Rectangle(b.Get1(), null, t.Get2(), null);
-                    // right.Add(newRight);
-                    rectangles.Add(newRight);
-                }
-            }
-        }
-        
-        walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-        flipFlop = 1;
-        if (rectangles.Count == 0) {
-            rectangles.Add(new Rectangle());
-        }
-        
-        while (!done) {
-            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
-                walkVector.x   = - resolutionOffset.x;
-                walkVector.z -= 1;
-            }
-
-            if (walkVector.z < -resolutionOffset.z) {
-                done = true;
-            }
-
-            if (_points.Contains(walkVector) && _points.IsActive(walkVector)) {
-                head  = _points[Helpers.VectorKey(walkVector)];
-                _head = head.Position;
-            
-                var indiceMap = GenerateVerticesByRule(head, false, false);
-
-                // if (indiceMap.Count > 1) {
-                //     CreateEdges(indiceMap);
-                // }
-                // else {
-                //     
-                // }
-
-                if (indiceMap.Count != 0) {
-                    if (rectangles.Count != 0) {
-                        foreach (var rect in rectangles.ToList()) {
-                            if (rect.Connected()) {
-                                continue;
-                            }
-                            if (indiceMap.ContainsKey(0)) {
-                                if (!rect.Has0()) {
-                                    rect.Set0(indiceMap[0]);
-                                }
-                            }
-                            if (indiceMap.ContainsKey(1)) {
-                                if (!rect.Has1()) {
-                                    rect.Set1(indiceMap[1]);
-                                } 
-                            }
-                            if (indiceMap.ContainsKey(2)) {
-                                if (!rect.Has2()) {
-                                    rect.Set2(indiceMap[2]);
-                                }
-                            }
-                            if (indiceMap.ContainsKey(3)) {
-                                if (!rect.Has3()) {
-                                    rect.Set3(indiceMap[3]);
-                                } 
-                            }
-                        }
-                    }
-                }
-            }
-
-            walkVector.x += 1 * flipFlop;
-            yield return new WaitForSeconds(RenderSpeed);
-        }
-
-        if (rectangles.Count != 0) {
-            foreach (var rect in rectangles.ToList()) {
-                if (rect.CompleteAndConnected(Vertices.Values.ToArray())) {
-                    print($"completed rect");
-                    Indices.AddRange(rect.Indices());
-                }
-                else if (rect.Connected()) {
-                    print($"trapeziod rect");
-                    Indices.AddRange(rect.Indices());
-                }
-            }
+        foreach (var tuple in outerIndices) {
+            print($"{tuple.Item1}{tuple.Item2}");
         }
         
         _mesh.vertices  = Vertices.Values.ToArray();
