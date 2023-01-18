@@ -117,6 +117,15 @@ public class Points {
 // Hashed Array! Dictionary of Indices, point to Array of Vertices
 public class NullableInt {
     private int I { get; set; }
+    
+    // public object this[int i]
+    // {
+    //     get { return InnerList[i]; }
+    //     set { InnerList[i] = value; }
+    // }
+    
+    NullableInt() { }
+    
     NullableInt(int i) {
         I = i;
     }
@@ -135,7 +144,7 @@ public class Trixel : MonoBehaviour {
     private Dictionary<string,Vector3> Vertices  = new();
     // private Vector3[]                  Vertices       = new[] { };
     private Dictionary<string,Vector3> OffsetVertices = new();
-    
+    private List<int> TestIndices = new ();
     
     private List<int>   Indices = new();
     public  BoxCollider Collider;
@@ -176,24 +185,16 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    int AddVertice(Vector3 v, bool useDuplicate = false) {
+    int AddVertice(Vector3 v) {
         if (!Vertices.ContainsKey(Helpers.VectorKey(v))) {
             Vertices.Add(Helpers.VectorKey(v), v);
             return Vertices.Count - 1;
         }
-        if (!useDuplicate) {
-            return -1;
-        }
         return Vertices.Values.ToList().IndexOf(v);
     }
 
-    bool VerticeCondition(bool a, bool b, bool c, bool invert) {
-        if (invert) {
-            a = !a;
-            b = !b;
-            c = !c;
-        }
-        return (a && b && c) || !a && b && c || !a && !b && c || !a && b && !c;
+    bool VerticeCondition(bool a, bool b, bool c) {
+        return a && b && c || !a && b && c || !a && !b && c || !a && b && !c || a && !b && !c;
     }
     
     //     0 + step, -- Top Left
@@ -203,8 +204,7 @@ public class Trixel : MonoBehaviour {
     //     0 + step, -- Top Left
     //     3 + step, -- Bottom Left
     //     2 + step  -- Bottom Right
-    Dictionary<int, int> GenerateVerticesByRule(Point p, bool inverse, bool duplicate = false) {
-        
+    Dictionary<int, int> GenerateVerticesByRule(Point p) {
         Dictionary<int, int> indiceMap = new();
 
         // if completely surrounded, just ignore 🙄
@@ -214,68 +214,145 @@ public class Trixel : MonoBehaviour {
         }
 
         // top left
-        if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, duplicate);
-            if (index != -1) {
-                indiceMap.Add(0, index);
-            }
+        if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
+            indiceMap.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
         }
         // top right
-        if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2, duplicate);
-            if (index != -1) {
-                indiceMap.Add(1, index);
-            }
+        if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
+            indiceMap.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
         }
         // bottom right
-        if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, duplicate);
-            if (index != -1) {
-                indiceMap.Add(2, index);
-            }
+        if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
+            indiceMap.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
         }
         // bottom left
-        if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p), inverse)) {
-            int index = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2, duplicate);
-            if (index != -1) {
-                indiceMap.Add(3, index);
-            }
+        if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
+            indiceMap.Add(3,  AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
         }
         return indiceMap;
     }
 
-    List<Tuple<int, int>> Walk(ref Point head, bool inverse, bool duplicate) {
-        var indices = new List<Tuple<int, int>>();
-        
-        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-        int     flipFlop   = 1;
-        bool    done       = false;
-        
-        while (!done) {
-            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
-                walkVector.x =  - resolutionOffset.x;
-                walkVector.z -= 1;
-            }
-        
-            if (walkVector.z < -resolutionOffset.z) {
-                done = true;
-            }
-        
-            if (_points.Contains(walkVector) && ((inverse) ? !_points.IsActive(walkVector) : _points.IsActive(walkVector))) {
-                head  = _points[Helpers.VectorKey(walkVector)];
-                _head = head.Position;
-
-                var newIndices = GenerateVerticesByRule(head, inverse, duplicate);
-                foreach (var pair in newIndices) {
-                    indices.Add(new Tuple<int, int>(pair.Key, pair.Value));
-                }
-            }
-            walkVector.x += 1 * flipFlop;
-        }
-
-        return indices;
+    void AddBasicTriangle(int[] i) {
+        Indices.AddRange(new [] {
+            i[0], i[1], i[2],
+        });
     }
     
+    // "1111" - full : TL, TR, BR, BL
+    //  TL ---- TR
+    //  |        |
+    //  |        |
+    //  BL ---- BR
+    // "0000" - empty
+    private Dictionary<int, NullableInt[]> heldCases = new();
+    string Case(string caseKey, int[] i) {
+        switch (caseKey) { 
+             //  o --
+             //  |
+             case "1000": // case 1
+                return($"{1}");
+            /*
+             *  -- o
+             *     |
+             */
+            case "0100":
+                if (heldCases.ContainsKey(13)) { // case 2 has a case 13
+                    var deloadedIndices = heldCases[13];
+                    deloadedIndices[1] = i[0];
+
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    //Indices.AddRange(new []{deloadedIndices[2].Value(), i[0], i[1]});
+                    heldCases.Remove(13);
+                }
+                return($"{2}");
+            /*
+            *  o -- o
+            *  |    |
+            */
+            case "1100":
+                return($"{3}");
+            /*
+           *      |
+           *   -- o
+           */
+            case "0010":
+                return($"{4}");
+            case "1010":
+                return($"{5}");
+            case "0110":
+                return($"{6}");
+            case "1110": // case 7
+                if (heldCases.ContainsKey(11)) {
+                    var deloadedIndices = heldCases[11];
+                    deloadedIndices[2] = i[0];
+
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    
+                    Indices.AddRange(new []{ i[0], i[2], deloadedIndices[0].Value()});
+                    heldCases.Remove(11);
+                }
+                
+                AddBasicTriangle(i);
+                return($"{7}");
+            case "0001":
+                return($"{8}");
+            case "1001":
+                return($"{9}");
+            case "0101":
+                return($"{10}");
+            case "1101":
+                // hold the case for another triangle
+                if (!heldCases.ContainsKey(11)) {
+                    heldCases.Add(11, new NullableInt[]{i[2], i[1], null});
+                }
+                
+                AddBasicTriangle(i);
+                return($"{11}");
+            case "0011":
+                return($"{12}");
+            case "1011":
+                AddBasicTriangle(i);
+                
+                // hold the case for another triangle
+                if (!heldCases.ContainsKey(13)) {
+                    heldCases.Add(13, new NullableInt[]{i[0], null, i[1]});
+                }
+                
+                return($"{13}");
+            case "0111":
+                if (heldCases.ContainsKey(13)) { // case 7 has a case 13
+                    var deloadedIndices = heldCases[13];
+                    deloadedIndices[1] = i[0];
+
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    
+                    Indices.AddRange(new []{deloadedIndices[2].Value(), i[0], i[1]});
+                    heldCases.Remove(13);
+                }
+                
+                AddBasicTriangle(i);
+                return($"{14}");
+            case "1111":
+                Indices.AddRange(new [] {
+                    i[0], i[1], i[2],
+                    i[0], i[2], i[3],
+                });
+                return($"{15}");
+            default:
+                return($"{0}");
+        }
+    }
+    
+    // List<Tuple<int, int>> Walk(ref Point head, bool inverse, bool duplicate) {
+    //  
+    // }
+
     IEnumerator LittleBabysMarchingCubes() {
         Helpers.ClearConsole();
         
@@ -287,22 +364,39 @@ public class Trixel : MonoBehaviour {
         OffsetVertices = new Dictionary<string, Vector3>();
         Indices        = new ();
         _mesh          = new Mesh();
-        
+        TestIndices    = new List<int>();
+        heldCases      = new();
         // stepping top x-y
        
-        bool  shadowDone = false;
-        Point head = new Point();
-
-        var innerIndices = Walk(ref head, true, true);
-
-        foreach (var tuple in innerIndices) {
-            print($"{tuple.Item1}{tuple.Item2}");
-        }
+       
+        Point head         = new Point();
+        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
+        int     flipFlop   = 1;
+        bool    done       = false;
+        while (!done) {
+            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
+                walkVector.x =  - resolutionOffset.x;
+                walkVector.z -= 1;
+            }
+            if (walkVector.z < -resolutionOffset.z) {
+                done = true;
+            }
         
-        var outerIndices = Walk(ref head, false, false);
-        
-        foreach (var tuple in outerIndices) {
-            print($"{tuple.Item1}{tuple.Item2}");
+            if (_points.Contains(walkVector) && _points.IsActive(walkVector)) {
+                head  = _points[Helpers.VectorKey(walkVector)];
+                _head = head.Position;
+                
+                var newIndices = GenerateVerticesByRule(head);
+                string caseKey = $"" +
+                                 $"{(newIndices.ContainsKey(0) ? 1 : 0)}" +
+                                 $"{(newIndices.ContainsKey(1) ? 1 : 0)}" +
+                                 $"{(newIndices.ContainsKey(2) ? 1 : 0)}" +
+                                 $"{(newIndices.ContainsKey(3) ? 1 : 0)}" +
+                                 $"";
+                print($"case: {Case(caseKey, newIndices.Values.ToArray())} # count: {newIndices.Count}");
+            }
+            walkVector.x += 1 * flipFlop;
+            yield return new WaitForSeconds(RenderSpeed);
         }
         
         _mesh.vertices  = Vertices.Values.ToArray();
@@ -381,5 +475,18 @@ public class Trixel : MonoBehaviour {
             Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
         }
 
+        if (TestIndices == null || TestIndices.Count == 0) {
+            return;
+        }
+        
+        Gizmos.color = Color.magenta;
+        for (int i = 0; i < TestIndices.Count; i+=2) {
+            var a = Vertices.Values.ToArray()[TestIndices[i]];
+            var b = Vertices.Values.ToArray()[TestIndices[(i + 1)]];
+            Gizmos.DrawWireSphere(a, 0.125f);
+            Gizmos.DrawWireSphere(b, 0.125f);
+            Gizmos.DrawLine(a, b);  
+        }
+        Gizmos.DrawGUITexture(new Rect(1,1,1,1), Texture2D.normalTexture);
     }
 }

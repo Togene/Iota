@@ -5,16 +5,23 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-public class Helpers : MonoBehaviour
-{
-       bool CCW(Vector3 a, Vector3 b, Vector3 c) {
-           return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
-       }
-       
-       public static bool SegementIntersection(Vector3 a, Vector3 b, Vector3 c, Vector3 d) {
+public class Segment {
+    private Vector3 A, B;
+
+    public Segment(Vector3 a, Vector3 b) {
+        A = a;
+        B = b;
+    }
+    
+}
+
+public class Helpers : MonoBehaviour {
+        public static bool PointOnSegement(Vector3 a, Vector3 b, Vector3 c) {
            // a - b, segment 1
            // c - d, segment 2
-   
+           
+           // create vector 
+            
            return false;
        }
        
