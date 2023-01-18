@@ -302,7 +302,25 @@ public class Trixel : MonoBehaviour {
                 return($"{8}");
             case "1001":
                 return($"{9}");
-            case "0101":
+             //    -- o
+             //  |    |
+             //  o --
+            case "0101": // case 10
+                if (heldCases.ContainsKey(13)) { // case 2 has a case 13
+                    var deloadedIndices = heldCases[13];
+                    deloadedIndices[1] = i[0];
+
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    
+                    if (!heldCases.ContainsKey(10)) {
+                        heldCases.Add(10, new NullableInt[]{i[1], i[0], null});
+                    }
+                    
+                    heldCases.Remove(13);
+                }
+                
                 return($"{10}");
             case "1101":
                 // hold the case for another triangle
@@ -315,6 +333,17 @@ public class Trixel : MonoBehaviour {
             case "0011":
                 return($"{12}");
             case "1011":
+                
+                if (heldCases.ContainsKey(10)) { // case 2 has a case 13
+                    var deloadedIndices = heldCases[10];
+                    deloadedIndices[2] = i[1];
+
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    heldCases.Remove(10);
+                }
+                
                 AddBasicTriangle(i);
                 
                 // hold the case for another triangle
