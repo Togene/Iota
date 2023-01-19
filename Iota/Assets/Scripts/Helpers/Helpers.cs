@@ -16,6 +16,16 @@ public class Segment {
 }
 
 public class Helpers : MonoBehaviour {
+
+
+    public static string CaseKey(Dictionary<int, int> d) {
+       return $"" +
+            $"{(d.ContainsKey(0) ? 1 : 0)}" +
+            $"{(d.ContainsKey(1) ? 1 : 0)}" +
+            $"{(d.ContainsKey(2) ? 1 : 0)}" +
+            $"{(d.ContainsKey(3) ? 1 : 0)}" +
+            $"";
+    }
         public static bool PointOnSegement(Vector3 a, Vector3 b, Vector3 c) {
            // a - b, segment 1
            // c - d, segment 2

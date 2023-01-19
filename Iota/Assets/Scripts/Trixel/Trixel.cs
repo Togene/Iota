@@ -237,6 +237,20 @@ public class Trixel : MonoBehaviour {
             i[0], i[1], i[2],
         });
     }
+
+    private Dictionary<int, NullableInt[]> heldCases = new();
+    NullableInt[] DeloadCaseIfExist(int caseId) {
+        if (heldCases.ContainsKey(caseId)) {
+            return heldCases[caseId];
+        }
+        return new NullableInt[]{};
+    }
+    
+    void AddCase(int caseId, NullableInt[] indices) {
+        if (!heldCases.ContainsKey(caseId)) {
+           heldCases.Add(caseId, indices);
+        }
+    }
     
     // "1111" - full : TL, TR, BR, BL
     //  TL ---- TR
@@ -244,18 +258,21 @@ public class Trixel : MonoBehaviour {
     //  |        |
     //  BL ---- BR
     // "0000" - empty
-    private Dictionary<int, NullableInt[]> heldCases = new();
     string Case(string caseKey, int[] i) {
         switch (caseKey) { 
-             //  o --
-             //  |
+            //  o -- 
+            //  |    |
+            //    --
              case "1000": // case 1
-                return($"{1}");
-            /*
-             *  -- o
-             *     |
-             */
-            case "0100":
+                 // hold the case for another triangle
+                 if (!heldCases.ContainsKey(1)) {
+                     heldCases.Add(1, new NullableInt[]{i[0], null, null});
+                 }
+                 return($"{1}");
+            //    -- o
+            //  |    |
+            //    --
+            case "0100": // case 2
                 if (heldCases.ContainsKey(13)) { // case 2 has a case 13
                     var deloadedIndices = heldCases[13];
                     deloadedIndices[1] = i[0];
@@ -263,23 +280,51 @@ public class Trixel : MonoBehaviour {
                     foreach (var nullInt in deloadedIndices) {
                         Indices.Add(nullInt.Value());
                     }
-                    //Indices.AddRange(new []{deloadedIndices[2].Value(), i[0], i[1]});
                     heldCases.Remove(13);
+                } else if (heldCases.ContainsKey(1)) {
+                    var deloadedIndices = heldCases[1];
+                    heldCases.Add(3, new []{deloadedIndices[0], i[0], null});
+                    heldCases.Remove(1);
+                } else if (heldCases.ContainsKey(9)) {
+                    var deloadedIndices = heldCases[9];
+                    deloadedIndices[2] = i[0];
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    heldCases.Remove(9);
+                    
+                    // creates a case 11 corner
+                    Case("1101", new []{deloadedIndices[1].Value(), i[0], deloadedIndices[0].Value()});
                 }
                 return($"{2}");
-            /*
-            *  o -- o
-            *  |    |
-            */
-            case "1100":
+            //  o -- o
+            //  |    |
+            //    --
+            case "1100": // case 3
+                if (heldCases.ContainsKey(2)) {
+                    var deloadedIndices = heldCases[2];
+                    heldCases.Add(23, new []{i[0], deloadedIndices[0], null});
+                    heldCases.Remove(2);
+                }
                 return($"{3}");
-            /*
-           *      |
-           *   -- o
-           */
-            case "0010":
+            //    --  
+            //  |    |
+            //    -- o
+            case "0010": // case 4
+                if (heldCases.ContainsKey(11)) {
+                    var deloadedIndices = heldCases[11];
+                    deloadedIndices[2] = i[0];
+                    foreach (var nullInt in deloadedIndices) {
+                        Indices.Add(nullInt.Value());
+                    }
+                    heldCases.Remove(11);
+                } 
+                
+                if (!heldCases.ContainsKey(4)) {
+                    heldCases.Add(4, new NullableInt[]{null, null, i[0]});
+                }
                 return($"{4}");
-            case "1010":
+            case "1010": // case 5
                 return($"{5}");
             case "0110":
                 return($"{6}");
@@ -295,12 +340,24 @@ public class Trixel : MonoBehaviour {
                     Indices.AddRange(new []{ i[0], i[2], deloadedIndices[0].Value()});
                     heldCases.Remove(11);
                 }
-                
                 AddBasicTriangle(i);
                 return($"{7}");
-            case "0001":
+            //    -- 
+            //  |    |
+            //  o -- 
+            case "0001": // case 8
+                if (heldCases.ContainsKey(3)) {
+                    var deloadedIndices = DeloadCaseIfExist(3);
+                    Case("1101", new []{deloadedIndices[0].Value(), deloadedIndices[1].Value(), i[0]});
+                }
                 return($"{8}");
-            case "1001":
+            //  o -- 
+            //  |    |
+            //  o --
+            case "1001": // case 9
+                if (!heldCases.ContainsKey(9)) {
+                    heldCases.Add(9, new NullableInt[]{i[1], i[0], null});
+                }
                 return($"{9}");
              //    -- o
              //  |    |
@@ -322,18 +379,18 @@ public class Trixel : MonoBehaviour {
                 }
                 
                 return($"{10}");
-            case "1101":
-                // hold the case for another triangle
+            //  o -- o
+            //  |    |
+            //  o --
+            case "1101": // case 11
                 if (!heldCases.ContainsKey(11)) {
                     heldCases.Add(11, new NullableInt[]{i[2], i[1], null});
                 }
-                
                 AddBasicTriangle(i);
                 return($"{11}");
             case "0011":
                 return($"{12}");
             case "1011":
-                
                 if (heldCases.ContainsKey(10)) { // case 2 has a case 13
                     var deloadedIndices = heldCases[10];
                     deloadedIndices[2] = i[1];
@@ -343,7 +400,6 @@ public class Trixel : MonoBehaviour {
                     }
                     heldCases.Remove(10);
                 }
-                
                 AddBasicTriangle(i);
                 
                 // hold the case for another triangle
@@ -415,14 +471,8 @@ public class Trixel : MonoBehaviour {
                 head  = _points[Helpers.VectorKey(walkVector)];
                 _head = head.Position;
                 
-                var newIndices = GenerateVerticesByRule(head);
-                string caseKey = $"" +
-                                 $"{(newIndices.ContainsKey(0) ? 1 : 0)}" +
-                                 $"{(newIndices.ContainsKey(1) ? 1 : 0)}" +
-                                 $"{(newIndices.ContainsKey(2) ? 1 : 0)}" +
-                                 $"{(newIndices.ContainsKey(3) ? 1 : 0)}" +
-                                 $"";
-                print($"case: {Case(caseKey, newIndices.Values.ToArray())} # count: {newIndices.Count}");
+                var    newIndices = GenerateVerticesByRule(head);
+                print($"case: {Case(Helpers.CaseKey(newIndices), newIndices.Values.ToArray())} # count: {newIndices.Count}");
             }
             walkVector.x += 1 * flipFlop;
             yield return new WaitForSeconds(RenderSpeed);
