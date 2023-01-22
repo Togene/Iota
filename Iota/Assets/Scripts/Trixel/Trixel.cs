@@ -227,30 +227,61 @@ public class Trixel : MonoBehaviour {
     //     3 + step, -- Bottom Left
     //     2 + step  -- Bottom Right
     Dictionary<int, int> GenerateVerticesByRule(Point p) {
-        Dictionary<int, int> indiceMap = new();
+        Dictionary<int, int> caseIndex = new();
 
         // if completely surrounded, just ignore 🙄
         if (_points.Surrounded(p)) {
             p.Active = false;
-            return indiceMap;
+            return new ();
         }
 
-        // top left
+        
         if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
-            indiceMap.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
+            caseIndex.Add(0, -1);
         }
-        // top right
         if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
-            indiceMap.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
+            caseIndex.Add(1, -1);
         }
-        // bottom right
         if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
-            indiceMap.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
+            caseIndex.Add(2, -1);
         }
-        // bottom left
         if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
-            indiceMap.Add(3,  AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
+            caseIndex.Add(3, -1);
         }
+        
+        Dictionary<int, int> indiceMap = new();
+        int caseState = Case(Helpers.CaseKey(caseIndex));
+
+        switch (caseState) {
+            case 7: case 11: case 13: case 14: case 15: 
+                // top left
+                indiceMap.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
+                // top right
+                indiceMap.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
+                // bottom right
+                indiceMap.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
+                // bottom left
+                indiceMap.Add(3, AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
+                
+                var square = new Square(p, Vertices.Values.ToArray(),
+                    indiceMap[0], indiceMap[1], indiceMap[2], indiceMap[3]);
+                Indices.AddRange(square.Dump());
+                
+                break;
+            case 1 : // top left
+                AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
+                break;
+            case 2: // top right
+                AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
+                break;
+            case 4: // bottom right
+                AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
+                break;
+            case 8: // bottom left
+                AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
+                break;
+        }
+        
         return indiceMap;
     }
 
@@ -260,91 +291,111 @@ public class Trixel : MonoBehaviour {
     //  |        |
     //  BL ---- BR
     // "0000" - empty
-    string Case(string caseKey) {
+    int Case(string caseKey) {
         switch (caseKey) { 
             //  o -- 
             //  |    |
             //    --
              case "1000": // case 1
-                 return($"{1}");
+                 return 1;
             //    -- o
             //  |    |
             //    --
             case "0100": // case 2
-                return($"{2}");
+                return 2;
             //  o -- o
             //  |    |
             //    --
             case "1100": // case 3
-                return($"{3}");
+                return 3;
             //    --  
             //  |    |
             //    -- o
             case "0010": // case 4
-                return($"{4}");
+                return 4;
             //  o --  
             //  |    |
             //    -- o
             case "1010": // case 5
-                return($"{5}");
+                return 5;
             //    -- o 
             //  |    |
             //    -- o
             case "0110":
-                return($"{6}");
+                return 6;
             //  o -- o 
             //  |    |
             //    -- o
             case "1110": // case 7
-                return($"{7}");
+                return 7;
             //    -- 
             //  |    |
             //  o -- 
             case "0001": // case 8
-                return($"{8}");
+                return 8;
             //  o -- 
             //  |    |
             //  o --
             case "1001": // case 9
-                return($"{9}");
+                return 9;
              //    -- o
              //  |    |
              //  o --
             case "0101": // case 10
-                return($"{10}");
+                return 10;
             //  o -- o
             //  |    |
             //  o --
             case "1101": // case 11
-                return($"{11}");
+                return 11;
             //    -- 
             //  |    |
             //  o -- o
             case "0011": // case 12
-                return($"{12}");
+                return 12;
             //  o -- 
             //  |    |
             //  o -- o
             case "1011": // case 13
-                return($"{13}");
+                return 13;
             //    -- o
             //  |    |
             //  o -- o
             case "0111": // case 14
-                return($"{14}");
+                return 14;
             //  o -- o
             //  |    |
             //  o -- o
             case "1111":
-                return($"{15}");
+                return 15;
             default:
-                return($"{0}");
+                return -1;
         }
     }
     
-    // List<Tuple<int, int>> Walk(ref Point head, bool inverse, bool duplicate) {
-    //  
-    // }
+    void Walk(Vector3 start) {
+         Point   head       = new Point();
+         Vector3 walkVector = start;
+         int     flipFlop   = 1;
+         
+         while (true) { // break added
+             if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
+                 walkVector.x =  - resolutionOffset.x;
+                 walkVector.z -= 1;
+             }
+             if (walkVector.z < -resolutionOffset.z) {
+                 break;
+             }
+        
+             if (_points.Contains(walkVector) && _points.IsActive(walkVector) && !_points.Checked(walkVector)) {
+                 head  = _points[Helpers.VectorKey(walkVector)];
+                 _head = head.Position;
+                 GenerateVerticesByRule(head);
+                 _points.MarkChecked(walkVector, true);
+             }
+             walkVector.x += 1 * flipFlop;
+         }
+    }
 
     IEnumerator LittleBabysMarchingCubes() {
         Helpers.ClearConsole();
@@ -359,64 +410,9 @@ public class Trixel : MonoBehaviour {
         _mesh          = new Mesh();
         TestIndices    = new List<int>();
         // stepping top x-y
-       
-       
-        Point   head          = new Point();
-        Vector3 walkVector    = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-        int     flipFlop      = 1;
+
         _points.ClearCheck();
-        
-        bool done = false;
-        while (!done) {
-            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
-                walkVector.x =  - resolutionOffset.x;
-                walkVector.z -= 1;
-            }
-            if (walkVector.z < -resolutionOffset.z) {
-                done = true;
-            }
-        
-            if (_points.Contains(walkVector) && _points.IsActive(walkVector) && !_points.Checked(walkVector)) {
-                head  = _points[Helpers.VectorKey(walkVector)];
-                _head = head.Position;
-                
-                Dictionary<int, int> indiceMap = new();
-
-                // if completely surrounded, just ignore 🙄
-                if (_points.Surrounded(head)) {
-                }
-
-                // top left
-                if (VerticeCondition(!_points.ForwardLeft(head), !_points.Left(head), !_points.Forward(head))) {
-                }
-                // top right
-                if (VerticeCondition(!_points.ForwardRight(head), !_points.Right(head), !_points.Forward(head))) {
-                }
-                // bottom right
-                if (VerticeCondition(!_points.BackRight(head), !_points.Right(head), !_points.Back(head))) {
-                }
-                // bottom left
-                if (VerticeCondition(!_points.BackLeft(head), !_points.Left(head), !_points.Back(head))) {
-                }
-                
-                indiceMap.Add(0, AddVertice(head.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
-                indiceMap.Add(1, AddVertice(head.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
-                indiceMap.Add(2, AddVertice(head.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
-                indiceMap.Add(3,  AddVertice(head.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
-
-                var square = new Square(
-                    head,
-                    Vertices.Values.ToArray(),
-                    indiceMap[0], indiceMap[1], indiceMap[2], indiceMap[3]);
-                Indices.AddRange(square.Dump());
-                
-                // print($"case: {Case(Helpers.CaseKey(newIndices), newCase)} # count: {newIndices.Count}");
-                _points.MarkChecked(walkVector, true);
-            }
-            walkVector.x += 1 * flipFlop;
-            yield return new WaitForSeconds(RenderSpeed);
-        }
-        
+        Walk(new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset);
         _mesh.vertices  = Vertices.Values.ToArray();
         _mesh.triangles = Indices.ToArray();
         _mesh.RecalculateBounds();
