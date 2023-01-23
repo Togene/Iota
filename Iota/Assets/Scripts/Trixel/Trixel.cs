@@ -27,10 +27,11 @@ public class Point {
 }
 
 public class Vertex {
-     bool              Virtual = false;
+     public  bool      Virtual = false;
      public  Vector3   Vertice;
      private Vector3[] Connected;
      public  string    Key;
+     public  int       Type;
      
      public Vertex(Vector3 v, bool isVirtual)  {
          Vertice = v;
@@ -38,13 +39,11 @@ public class Vertex {
      }
      
      public Vertex(Vector3 v) : this(v, false) {
-         Key     = Helpers.VectorKey(v);
+         Key     = v.Key();
          Vertice = v;
      }
-     
      // Custom cast from "Vector3":
      public static implicit operator Vertex( Vector3 x ) { return new Vertex( x ); }
-     
      // Custom cast to "Vector3":
      public static implicit operator Vector3( Vertex x ) { return x.Vertice; }
 }
@@ -96,7 +95,7 @@ public class Points {
     }
 
     public void Add(Vector3 v) {
-        list.Add(Helpers.VectorKey(v), new Point(v, true));
+        list.Add(v.Key(), new Point(v, true));
     }
 
     public void ClearCheck() {
@@ -105,6 +104,14 @@ public class Points {
         }
     }
 
+    public void Hop(ref List<Point> ps, Vector3 start, Vector3 step) {
+        if (ContainsAndActive(start + step) && !Checked(start + step)) {
+            Hop(ref ps, start + step, step);
+            ps.Add(list[(start + step).Key()]);
+            list[(start + step).Key()].Checked = true;
+        }
+    }
+    
     public Point GetPointByVector(Vector3 v)               { return list[Helpers.VectorKey(v)];}
     public Point GetPointByIndex(int x, int y, int z) { return GetPointByVector(new Vector3(x, y, z)); }
     public bool  Contains(Vector3 v)         { return list.ContainsKey(Helpers.VectorKey(v)); }
@@ -232,11 +239,16 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    int AddVertice(Vertex v) {
+    int AddVertice(Vertex v, bool real, int type) {
         if (!Vertices.ContainsKey(v.Key)) {
             Vertices.Add(v.Key, v);
+            v.Virtual = !real;
+            v.Type    = type;
             return Vertices.Count - 1;
         }
+        // print($"duplicate found");
+        // if (Vertices[v.Key].Virtual) {
+        //OffsetVertices.Add(v.Key, v);
         return Vertices.Keys.ToList().IndexOf(v.Key);
     }
 
@@ -399,23 +411,23 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    int CellState(Point p) {
+    Dictionary<int, int> CellState(Point p) {
         Dictionary<int, int> caseIndex = new();
         
-        if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
-            caseIndex.Add(0, -1);
-        }
-        if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
-            caseIndex.Add(1, -1);
-        }
-        if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
-            caseIndex.Add(2, -1);
-        }
-        if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
-            caseIndex.Add(3, -1);
-        }
-        // _points.SetState(p.Position, Case(Helpers.CaseKey(caseIndex)));
-        return Case(Helpers.CaseKey(caseIndex));
+        // TL
+        caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
+            VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p)), 0));
+        // TR
+        caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
+            VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p)), 1));
+        // BR
+        caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
+            VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p)), 2));
+        // BL
+        caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
+            VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p)), 3));
+
+        return caseIndex; 
     }
     
     void Walk(bool inverted) {
@@ -431,19 +443,89 @@ public class Trixel : MonoBehaviour {
                  break;
              }
         
-             if (_points.Contains(walkVector) && _points.IsActive(walkVector) && !_points.Checked(walkVector)) {
+             if (_points.Contains(walkVector) && !_points.IsActive(walkVector) && !_points.Checked(walkVector)) {
                  Point p   = _points[Helpers.VectorKey(walkVector)];
                  _head = p.Position;
 
-                 var TL = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
-                 var TR = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
-                 var BR = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
-                 var BL = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
+                 List<Point> frontHopList = new List<Point>();
+                 _points.Hop(ref frontHopList, p.Position, Vector3.forward);
                  
-                 var square = new Square(p, Vertices.Values.ToArray().ToVector3Array(), TL, TR, BR, BL);
-                 Indices.AddRange(square.Dump());
+                 List<Point> leftHopList = new List<Point>();
+                 _points.Hop(ref leftHopList, p.Position, Vector3.left);
+                 
+                 List<Point> rightHopList = new List<Point>();
+                 _points.Hop(ref rightHopList, p.Position, Vector3.right);
+                 
+                 List<Point> backHopList = new List<Point>();
+                 _points.Hop(ref backHopList, p.Position, Vector3.back);
+     
+                 for (int i = 0; i < frontHopList.Count; i++) {
+                     var vp      = frontHopList[i];
+                     var vp1      = frontHopList[(i + 1) % frontHopList.Count];
 
-                 _points.MarkChecked(walkVector, true);
+                     var indices = CellState(vp);
+                     var TL1     = indices[0];
+                     var TR1     = indices[1];
+                     var BR1     = indices[2];
+                     var BL1     = indices[3];
+                     
+                     var indices2 = CellState(vp1);
+                     var TL2      = indices2[0];
+                     var TR2      = indices2[1];
+                     var BR2      = indices2[2];
+                     var BL2      = indices2[3];
+
+                     var vertices = Vertices.Values.ToArray().ToVector3Array();
+                     if (BL2 == TL1) {
+                         TL1 = TL2;
+                         //Vertices.Remove(vertices[BL2].Key());
+                         // Vertices.Remove(vertices[TL2].Key());
+                     }
+                     if (BR2 == TR1) {
+                         TR1 = TR2;
+                         //Vertices.Remove(vertices[BR2].Key());
+                     }
+                     
+                     if (TR2 == BR1) {
+                         BR1 = BR2;
+                         //Vertices.Remove(vertices[TR2].Key());
+                     }
+                     if (TL2 == TR1) {
+                         BL1 = BL2;
+                         //Vertices.Remove(vertices[TL2].Key());
+                     }
+                     
+                     
+                     var square = new Square(vp, vertices, TL1, TR1, BR1, BL1);
+                     
+                     // var square2 = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                     //     indices2[0], indices2[1], indices2[2], indices2[3]);
+                     
+                     
+                     Indices.AddRange(square.Dump());
+                     
+                 }
+                 
+                 foreach (var vp in leftHopList) {
+                     var indices = CellState(vp);
+                     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                         indices[0], indices[1], indices[2], indices[3]);
+                     Indices.AddRange(square.Dump());
+                 }
+                 
+                 foreach (var vp in rightHopList) {
+                     var indices = CellState(vp);
+                     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                         indices[0], indices[1], indices[2], indices[3]);
+                     Indices.AddRange(square.Dump());
+                 }
+                 
+                 foreach (var vp in backHopList) {
+                     var indices = CellState(vp);
+                     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                         indices[0], indices[1], indices[2], indices[3]);
+                     Indices.AddRange(square.Dump());
+                 }
              }
              walkVector.x += 1 * flipFlop;
          }
@@ -525,7 +607,6 @@ public class Trixel : MonoBehaviour {
             if (p.Value.Active) Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
         }
         
-        
         Gizmos.color = Color.green;
         Gizmos.DrawRay(_hitPoint, _direction);
         Gizmos.DrawSphere(_head, 0.15f);
@@ -533,28 +614,29 @@ public class Trixel : MonoBehaviour {
         if (Vertices == null || Vertices.Count == 0) {
             return;
         }
-        Gizmos.color = Color.magenta;
+        
         foreach (var p in Vertices) {
-            Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
-        }
-       
-        Gizmos.color = Color.blue;
-        foreach (var p in OffsetVertices) {
-            Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
-        }
 
-        if (TestIndices == null || TestIndices.Count == 0) {
-            return;
+            if (!p.Value.Virtual) {
+                if (p.Value.Type == 0) {
+                    Gizmos.color = Color.blue;
+                } else if (p.Value.Type == 1) {
+                    Gizmos.color = Color.red;
+                } else if (p.Value.Type == 2) {
+                    Gizmos.color = Color.yellow;
+                } else if (p.Value.Type == 3) {
+                    Gizmos.color = Color.green;
+                } 
+            }
+            else {
+                Gizmos.color = Color.magenta;
+            }
+            Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
         }
         
-        Gizmos.color = Color.magenta;
-        for (int i = 0; i < TestIndices.Count; i+=2) {
-            var a = Vertices.Values.ToArray()[TestIndices[i]];
-            var b = Vertices.Values.ToArray()[TestIndices[(i + 1)]];
-            Gizmos.DrawWireSphere(a, 0.125f);
-            Gizmos.DrawWireSphere(b, 0.125f);
-            Gizmos.DrawLine(a, b);  
+        Gizmos.color = Color.cyan;
+        foreach (var p in OffsetVertices) {
+            Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
         }
-        Gizmos.DrawGUITexture(new Rect(1,1,1,1), Texture2D.normalTexture);
     }
 }

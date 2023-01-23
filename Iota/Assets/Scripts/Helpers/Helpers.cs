@@ -15,8 +15,11 @@ public class Segment {
     
 }
 
-public class Helpers : MonoBehaviour {
+public static class Helpers {
 
+    public static string Key(this Vector3 v) {
+        return VectorKey(v, Vector3.zero);
+    }
 
     public static string CaseKey(Dictionary<int, int> d) {
        return $"" +
