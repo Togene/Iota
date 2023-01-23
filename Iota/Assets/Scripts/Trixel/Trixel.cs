@@ -1,23 +1,24 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using Unity.VisualScripting;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.Windows;
 using Input = UnityEngine.Input;
 
 // https://www.theappguruz.com/blog/simple-cube-mesh-generation-unity3d
 
+public static class ExtensionMethods {
+    public static Vector3[] ToVector3Array(this Vertex[] v) {
+        return Array.ConvertAll(v, item => (Vector3)item);;
+    }
+}
+    
 public class Point {
     public bool        Active   = false;
-    public bool        Checked   = false;
+    public bool        Checked  = false;
     public Vector3     Position = new();
-    public BoxCollider Collider = new ();
-    
+
     public Point(){}
     public Point(Vector3 p, bool a) {
         Active   = a;
@@ -25,10 +26,35 @@ public class Point {
     }
 }
 
+public class Vertex {
+     bool              Virtual = false;
+     public  Vector3   Vertice;
+     private Vector3[] Connected;
+     public  string    Key;
+     
+     public Vertex(Vector3 v, bool isVirtual)  {
+         Vertice = v;
+         Virtual = isVirtual;
+     }
+     
+     public Vertex(Vector3 v) : this(v, false) {
+         Key     = Helpers.VectorKey(v);
+         Vertice = v;
+     }
+     
+     // Custom cast from "Vector3":
+     public static implicit operator Vertex( Vector3 x ) { return new Vertex( x ); }
+     
+     // Custom cast to "Vector3":
+     public static implicit operator Vector3( Vertex x ) { return x.Vertice; }
+}
+
 public class Square {
     private Point                    p;
     private Dictionary <string, int> i = new();
+    private Vertex[]                 vertices;
     private int[]                    indices;
+    
     public Square(){}
     
     public Square(Point p, Vector3[] v, int TL, int TR, int BR, int BL) {
@@ -79,14 +105,14 @@ public class Points {
         }
     }
 
-    public Point GetPointByVector(Vector3     v)               { return list[Helpers.VectorKey(v)];}
-    public Point GetPointByIndex(int          x, int y, int z) { return GetPointByVector(new Vector3(x, y, z)); }
-    public bool  Contains(Vector3             v)         { return list.ContainsKey(Helpers.VectorKey(v)); }
-    public bool  IsActive(Vector3             v)         { return list[Helpers.VectorKey(v)].Active; }
-    public bool  Checked(Vector3              v)         { return list[Helpers.VectorKey(v)].Checked; }
-    public void  MarkChecked(Vector3              v, bool b)         {  list[Helpers.VectorKey(v)].Checked = b; }
-    public void  SetPointsActive(Vector3      v, bool b) { list[Helpers.VectorKey(v)].Active = b; }
-    public bool  ContainsAndActive(Vector3    v) { return Contains(v) && IsActive(v); }
+    public Point GetPointByVector(Vector3 v)               { return list[Helpers.VectorKey(v)];}
+    public Point GetPointByIndex(int x, int y, int z) { return GetPointByVector(new Vector3(x, y, z)); }
+    public bool  Contains(Vector3 v)         { return list.ContainsKey(Helpers.VectorKey(v)); }
+    public bool  IsActive(Vector3 v)         { return list[Helpers.VectorKey(v)].Active; }
+    public bool  Checked(Vector3 v)         { return list[Helpers.VectorKey(v)].Checked; }
+    public void  MarkChecked(Vector3 v, bool b)         {  list[Helpers.VectorKey(v)].Checked = b; }
+    public void  SetPointsActive(Vector3 v, bool b) { list[Helpers.VectorKey(v)].Active = b; }
+    public bool  ContainsAndActive(Vector3 v) { return Contains(v) && IsActive(v); }
     public bool  ContainsAndNotActive(Vector3 v) { return Contains(v) && !IsActive(v); }
     public bool Top(Point p) {
          return ContainsAndActive(p.Position + Vector3.up); 
@@ -161,11 +187,11 @@ public class Trixel : MonoBehaviour {
     [Range(2, 16)] public int                       Resolution;
     [Range(0.0f, 16.0f)] public float               RenderSpeed;
     
-    private Points                     _points;
-    private Dictionary<string,Vector3> Vertices  = new();
+    private Points                    _points;
+    private Dictionary<string, Vertex> Vertices = new();
     // private Vector3[]                  Vertices       = new[] { };
-    private Dictionary<string,Vector3> OffsetVertices = new();
-    private List<int> TestIndices = new ();
+    private Dictionary<string,Vertex> OffsetVertices = new();
+    private List<int>                 TestIndices    = new ();
     
     private List<int>   Indices = new();
     public  BoxCollider Collider;
@@ -192,7 +218,7 @@ public class Trixel : MonoBehaviour {
 
     void Init() {
         _points          = new Points();
-        Vertices         = new Dictionary<string, Vector3>();
+        Vertices         = new Dictionary<string, Vertex>();
         resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
         _mf.mesh         = new Mesh();
         
@@ -206,12 +232,12 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    int AddVertice(Vector3 v) {
-        if (!Vertices.ContainsKey(Helpers.VectorKey(v))) {
-            Vertices.Add(Helpers.VectorKey(v), v);
+    int AddVertice(Vertex v) {
+        if (!Vertices.ContainsKey(v.Key)) {
+            Vertices.Add(v.Key, v);
             return Vertices.Count - 1;
         }
-        return Vertices.Values.ToList().IndexOf(v);
+        return Vertices.Keys.ToList().IndexOf(v.Key);
     }
 
     bool VerticeCondition(bool a, bool b, bool c) {
@@ -226,64 +252,64 @@ public class Trixel : MonoBehaviour {
     //     0 + step, -- Top Left
     //     3 + step, -- Bottom Left
     //     2 + step  -- Bottom Right
-    Dictionary<int, int> GenerateVerticesByRule(Point p) {
-        Dictionary<int, int> caseIndex = new();
-
-        // if completely surrounded, just ignore 🙄
-        if (_points.Surrounded(p)) {
-            p.Active = false;
-            return new ();
-        }
-
-        
-        if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
-            caseIndex.Add(0, -1);
-        }
-        if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
-            caseIndex.Add(1, -1);
-        }
-        if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
-            caseIndex.Add(2, -1);
-        }
-        if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
-            caseIndex.Add(3, -1);
-        }
-        
-        Dictionary<int, int> indiceMap = new();
-        int caseState = Case(Helpers.CaseKey(caseIndex));
-
-        switch (caseState) {
-            case 7: case 11: case 13: case 14: case 15: 
-                // top left
-                indiceMap.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
-                // top right
-                indiceMap.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
-                // bottom right
-                indiceMap.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
-                // bottom left
-                indiceMap.Add(3, AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
-                
-                var square = new Square(p, Vertices.Values.ToArray(),
-                    indiceMap[0], indiceMap[1], indiceMap[2], indiceMap[3]);
-                Indices.AddRange(square.Dump());
-                
-                break;
-            case 1 : // top left
-                AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
-                break;
-            case 2: // top right
-                AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
-                break;
-            case 4: // bottom right
-                AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
-                break;
-            case 8: // bottom left
-                AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
-                break;
-        }
-        
-        return indiceMap;
-    }
+    // Dictionary<int, int> GenerateVerticesByRule(Point p) {
+    //     Dictionary<int, int> caseIndex = new();
+    //
+    //     // if completely surrounded, just ignore 🙄
+    //     if (_points.Surrounded(p)) {
+    //         p.Active = false;
+    //         return new ();
+    //     }
+    //
+    //     
+    //     if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
+    //         caseIndex.Add(0, -1);
+    //     }
+    //     if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
+    //         caseIndex.Add(1, -1);
+    //     }
+    //     if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
+    //         caseIndex.Add(2, -1);
+    //     }
+    //     if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
+    //         caseIndex.Add(3, -1);
+    //     }
+    //     
+    //     Dictionary<int, int> indiceMap = new();
+    //     int caseState = Case(Helpers.CaseKey(caseIndex));
+    //
+    //     switch (caseState) {
+    //         case 7: case 11: case 13: case 14: case 15: 
+    //             // top left
+    //             indiceMap.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
+    //             // top right
+    //             indiceMap.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
+    //             // bottom right
+    //             indiceMap.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
+    //             // bottom left
+    //             indiceMap.Add(3, AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
+    //             
+    //             var square = new Square(p, Vertices.Values.ToArray(),
+    //                 indiceMap[0], indiceMap[1], indiceMap[2], indiceMap[3]);
+    //             Indices.AddRange(square.Dump());
+    //             
+    //             break;
+    //         case 1 : // top left
+    //             AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
+    //             break;
+    //         case 2: // top right
+    //             AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
+    //             break;
+    //         case 4: // bottom right
+    //             AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
+    //             break;
+    //         case 8: // bottom left
+    //             AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
+    //             break;
+    //     }
+    //     
+    //     return indiceMap;
+    // }
 
     // "1111" - full : TL, TR, BR, BL
     //  TL ---- TR
@@ -369,14 +395,32 @@ public class Trixel : MonoBehaviour {
             case "1111":
                 return 15;
             default:
-                return -1;
+                return 0;
         }
     }
+
+    int CellState(Point p) {
+        Dictionary<int, int> caseIndex = new();
+        
+        if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
+            caseIndex.Add(0, -1);
+        }
+        if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
+            caseIndex.Add(1, -1);
+        }
+        if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
+            caseIndex.Add(2, -1);
+        }
+        if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
+            caseIndex.Add(3, -1);
+        }
+        // _points.SetState(p.Position, Case(Helpers.CaseKey(caseIndex)));
+        return Case(Helpers.CaseKey(caseIndex));
+    }
     
-    void Walk(Vector3 start) {
-         Point   head       = new Point();
-         Vector3 walkVector = start;
-         int     flipFlop   = 1;
+    void Walk(bool inverted) {
+        int     flipFlop   = 1;
+        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
          
          while (true) { // break added
              if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
@@ -388,9 +432,17 @@ public class Trixel : MonoBehaviour {
              }
         
              if (_points.Contains(walkVector) && _points.IsActive(walkVector) && !_points.Checked(walkVector)) {
-                 head  = _points[Helpers.VectorKey(walkVector)];
-                 _head = head.Position;
-                 GenerateVerticesByRule(head);
+                 Point p   = _points[Helpers.VectorKey(walkVector)];
+                 _head = p.Position;
+
+                 var TL = AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
+                 var TR = AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
+                 var BR = AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
+                 var BL = AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
+                 
+                 var square = new Square(p, Vertices.Values.ToArray().ToVector3Array(), TL, TR, BR, BL);
+                 Indices.AddRange(square.Dump());
+
                  _points.MarkChecked(walkVector, true);
              }
              walkVector.x += 1 * flipFlop;
@@ -403,17 +455,19 @@ public class Trixel : MonoBehaviour {
         _mf.mesh       = new Mesh();
         
         // stores position key and indice
-        Vertices       = new Dictionary<string, Vector3>();
-        
-        OffsetVertices = new Dictionary<string, Vector3>();
+        Vertices       = new Dictionary<string, Vertex>();
+        OffsetVertices = new Dictionary<string, Vertex>();
         Indices        = new ();
         _mesh          = new Mesh();
         TestIndices    = new List<int>();
         // stepping top x-y
 
         _points.ClearCheck();
-        Walk(new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset);
-        _mesh.vertices  = Vertices.Values.ToArray();
+        
+        Point head = new Point();
+        Walk(true);
+        
+        _mesh.vertices  = Vertices.Values.ToArray().ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
