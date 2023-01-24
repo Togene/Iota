@@ -15,14 +15,23 @@ public static class ExtensionMethods {
 }
     
 public class Point {
-    public bool        Active   = false;
-    public bool        Checked  = false;
-    public Vector3     Position = new();
-
+    public bool    Active   = false;
+    public bool    Checked  = false;
+    public Vector3 Position = new();
+    public Square  Face;
+    
     public Point(){}
     public Point(Vector3 p, bool a) {
         Active   = a;
         Position = p;
+    }
+
+    public void SetFace(Vector3[] v, int TL, int TR, int BR, int BL) {
+        Face = new Square(this, v, TL, TR, BR, BL);
+    }
+    
+    public void SetFace(Square s) {
+        Face = s;
     }
 }
 
@@ -52,7 +61,7 @@ public class Square {
     private Point                    p;
     private Dictionary <string, int> i = new();
     private Vertex[]                 vertices;
-    private int[]                    indices;
+    public int[]                    indices;
     
     public Square(){}
     
@@ -88,7 +97,8 @@ public class Points {
     public ref Dictionary<string, Point> GetList() {
         return ref list;
     }
-
+    public Dictionary<string, Vertex> Vertices = new();
+    
     public Point this[string a] {
         get { return list[a]; }
         set { list[a] = value; }
@@ -103,10 +113,52 @@ public class Points {
             p.Value.Checked = false;
         }
     }
+    
+    bool VerticeCondition(bool a, bool b, bool c) {
+        return a && b && c || !a && b && c || !a && !b && c || !a && b && !c || a && !b && !c;
+    }
+    
+    int AddVertice(Vertex v, bool real, int type) {
+        if (!Vertices.ContainsKey(v.Key)) {
+            Vertices.Add(v.Key, v);
+            v.Virtual = !real;
+            v.Type    = type;
+            return Vertices.Count - 1;
+        }
+        // print($"duplicate found");
+        // if (Vertices[v.Key].Virtual) {
+        //OffsetVertices.Add(v.Key, v);
+        return Vertices.Keys.ToList().IndexOf(v.Key);
+    }
+    
+    Dictionary<int, int> CellState(Point p) {
+        Dictionary<int, int> caseIndex = new();
+        
+        // TL
+        caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
+            VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 0));
+        // TR
+        caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
+            VerticeCondition(!ForwardRight(p), !Right(p), !Forward(p)), 1));
+        // BR
+        caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
+            VerticeCondition(!BackRight(p), !Right(p), !Back(p)), 2));
+        // BL
+        caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
+            VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 3));
 
+        return caseIndex; 
+    }
+    
     public void Hop(ref List<Point> ps, Vector3 start, Vector3 step) {
         if (ContainsAndActive(start + step) && !Checked(start + step)) {
             Hop(ref ps, start + step, step);
+            
+            var indices = CellState(list[(start + step).Key()]);
+            list[(start + step).Key()].SetFace(
+                Vertices.Values.ToArray().ToVector3Array(), 
+                indices[0], indices[1], indices[2], indices[3]);
+            
             ps.Add(list[(start + step).Key()]);
             list[(start + step).Key()].Checked = true;
         }
@@ -195,7 +247,7 @@ public class Trixel : MonoBehaviour {
     [Range(0.0f, 16.0f)] public float               RenderSpeed;
     
     private Points                    _points;
-    private Dictionary<string, Vertex> Vertices = new();
+    //private Dictionary<string, Vertex> Vertices = new();
     // private Vector3[]                  Vertices       = new[] { };
     private Dictionary<string,Vertex> OffsetVertices = new();
     private List<int>                 TestIndices    = new ();
@@ -225,7 +277,7 @@ public class Trixel : MonoBehaviour {
 
     void Init() {
         _points          = new Points();
-        Vertices         = new Dictionary<string, Vertex>();
+        // Vertices         = new Dictionary<string, Vertex>();
         resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
         _mf.mesh         = new Mesh();
         
@@ -239,22 +291,22 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    int AddVertice(Vertex v, bool real, int type) {
-        if (!Vertices.ContainsKey(v.Key)) {
-            Vertices.Add(v.Key, v);
-            v.Virtual = !real;
-            v.Type    = type;
-            return Vertices.Count - 1;
-        }
-        // print($"duplicate found");
-        // if (Vertices[v.Key].Virtual) {
-        //OffsetVertices.Add(v.Key, v);
-        return Vertices.Keys.ToList().IndexOf(v.Key);
-    }
+    // int AddVertice(Vertex v, bool real, int type) {
+    //     if (!Vertices.ContainsKey(v.Key)) {
+    //         Vertices.Add(v.Key, v);
+    //         v.Virtual = !real;
+    //         v.Type    = type;
+    //         return Vertices.Count - 1;
+    //     }
+    //     // print($"duplicate found");
+    //     // if (Vertices[v.Key].Virtual) {
+    //     //OffsetVertices.Add(v.Key, v);
+    //     return Vertices.Keys.ToList().IndexOf(v.Key);
+    // }
 
-    bool VerticeCondition(bool a, bool b, bool c) {
-        return a && b && c || !a && b && c || !a && !b && c || !a && b && !c || a && !b && !c;
-    }
+    // bool VerticeCondition(bool a, bool b, bool c) {
+    //     return a && b && c || !a && b && c || !a && !b && c || !a && b && !c || a && !b && !c;
+    // }
     
     
     //     0 + step, -- Top Left
@@ -411,24 +463,24 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    Dictionary<int, int> CellState(Point p) {
-        Dictionary<int, int> caseIndex = new();
-        
-        // TL
-        caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
-            VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p)), 0));
-        // TR
-        caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
-            VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p)), 1));
-        // BR
-        caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
-            VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p)), 2));
-        // BL
-        caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
-            VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p)), 3));
-
-        return caseIndex; 
-    }
+    // Dictionary<int, int> CellState(Point p) {
+    //     Dictionary<int, int> caseIndex = new();
+    //     
+    //     // TL
+    //     caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
+    //         VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p)), 0));
+    //     // TR
+    //     caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
+    //         VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p)), 1));
+    //     // BR
+    //     caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
+    //         VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p)), 2));
+    //     // BL
+    //     caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
+    //         VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p)), 3));
+    //
+    //     return caseIndex; 
+    // }
     
     void Walk(bool inverted) {
         int     flipFlop   = 1;
@@ -450,82 +502,88 @@ public class Trixel : MonoBehaviour {
                  List<Point> frontHopList = new List<Point>();
                  _points.Hop(ref frontHopList, p.Position, Vector3.forward);
                  
-                 List<Point> leftHopList = new List<Point>();
-                 _points.Hop(ref leftHopList, p.Position, Vector3.left);
+                 // List<Point> leftHopList = new List<Point>();
+                 _points.Hop(ref frontHopList, p.Position, Vector3.left);
                  
-                 List<Point> rightHopList = new List<Point>();
-                 _points.Hop(ref rightHopList, p.Position, Vector3.right);
+                 // List<Point> rightHopList = new List<Point>();
+                 _points.Hop(ref frontHopList, p.Position, Vector3.right);
                  
-                 List<Point> backHopList = new List<Point>();
-                 _points.Hop(ref backHopList, p.Position, Vector3.back);
+                 // List<Point> backHopList = new List<Point>();
+                 _points.Hop(ref frontHopList, p.Position, Vector3.back);
      
                  for (int i = 0; i < frontHopList.Count; i++) {
                      var vp      = frontHopList[i];
-                     var vp1      = frontHopList[(i + 1) % frontHopList.Count];
 
-                     var indices = CellState(vp);
-                     var TL1     = indices[0];
-                     var TR1     = indices[1];
-                     var BR1     = indices[2];
-                     var BL1     = indices[3];
-                     
-                     var indices2 = CellState(vp1);
-                     var TL2      = indices2[0];
-                     var TR2      = indices2[1];
-                     var BR2      = indices2[2];
-                     var BL2      = indices2[3];
+                     for (int k = 0; k < frontHopList.Count; k++) {
+                         var vp1 = frontHopList[k];
+                         if (i == k) {continue;}
 
-                     var vertices = Vertices.Values.ToArray().ToVector3Array();
-                     if (BL2 == TL1) {
-                         TL1 = TL2;
-                         //Vertices.Remove(vertices[BL2].Key());
-                         // Vertices.Remove(vertices[TL2].Key());
+                         var TL1 = vp.Face.indices[0];
+                         var TR1 = vp.Face.indices[1];
+                         var BR1 = vp.Face.indices[2];
+                         var BL1 = vp.Face.indices[3];
+                     
+                         var TL2 = vp1.Face.indices[0];
+                         var TR2 = vp1.Face.indices[1];
+                         var BR2 = vp1.Face.indices[2];
+                         var BL2 = vp1.Face.indices[3];
+                     
+                         if (BL2 == TL1) {
+                             vp.Face.indices[0] = TL2;
+                         }
+                         if (BR2 == TR1) {
+                             vp.Face.indices[1] = TR2;
+                         }
+                         
+                         if (TR2 == BR1) {
+                             vp.Face.indices[2] = BR2;
+                         }
+                         if (TR1 == BR2) {
+                             vp.Face.indices[1] = BR2;
+                         }
+                         
+                         if (TL1 == TR2) {
+                             vp.Face.indices[0] = TL2;
+                         }
+                         if (BR1 == BL2) {
+                             vp.Face.indices[2] = BR2;
+                         }
                      }
-                     if (BR2 == TR1) {
-                         TR1 = TR2;
-                         //Vertices.Remove(vertices[BR2].Key());
-                     }
+                     Indices.AddRange(vp.Face.Dump());
+                   
                      
-                     if (TR2 == BR1) {
-                         BR1 = BR2;
-                         //Vertices.Remove(vertices[TR2].Key());
-                     }
-                     if (TL2 == TR1) {
-                         BL1 = BL2;
-                         //Vertices.Remove(vertices[TL2].Key());
-                     }
-                     
-                     
-                     var square = new Square(vp, vertices, TL1, TR1, BR1, BL1);
-                     
-                     // var square2 = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                     //     indices2[0], indices2[1], indices2[2], indices2[3]);
-                     
-                     
-                     Indices.AddRange(square.Dump());
+                     //
+                     //
+                     // var square = new Square(vp, vertices, TL1, TR1, BR1, BL1);
+                     //
+                     // // var square2 = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                     // //     indices2[0], indices2[1], indices2[2], indices2[3]);
+                     //
+                     //
+                     // Indices.AddRange(square.Dump());
                      
                  }
                  
-                 foreach (var vp in leftHopList) {
-                     var indices = CellState(vp);
-                     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                         indices[0], indices[1], indices[2], indices[3]);
-                     Indices.AddRange(square.Dump());
-                 }
-                 
-                 foreach (var vp in rightHopList) {
-                     var indices = CellState(vp);
-                     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                         indices[0], indices[1], indices[2], indices[3]);
-                     Indices.AddRange(square.Dump());
-                 }
-                 
-                 foreach (var vp in backHopList) {
-                     var indices = CellState(vp);
-                     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                         indices[0], indices[1], indices[2], indices[3]);
-                     Indices.AddRange(square.Dump());
-                 }
+                 // foreach (var vp in leftHopList) {
+                 //     var indices = CellState(vp);
+                 //     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                 //         indices[0], indices[1], indices[2], indices[3]);
+                 //     Indices.AddRange(square.Dump());
+                 // }
+                 //
+                 // foreach (var vp in rightHopList) {
+                 //     var indices = CellState(vp);
+                 //     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                 //         indices[0], indices[1], indices[2], indices[3]);
+                 //     Indices.AddRange(square.Dump());
+                 // }
+                 //
+                 // foreach (var vp in backHopList) {
+                 //     var indices = CellState(vp);
+                 //     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
+                 //         indices[0], indices[1], indices[2], indices[3]);
+                 //     Indices.AddRange(square.Dump());
+                 // }
              }
              walkVector.x += 1 * flipFlop;
          }
@@ -537,7 +595,7 @@ public class Trixel : MonoBehaviour {
         _mf.mesh       = new Mesh();
         
         // stores position key and indice
-        Vertices       = new Dictionary<string, Vertex>();
+        _points.Vertices       = new Dictionary<string, Vertex>();
         OffsetVertices = new Dictionary<string, Vertex>();
         Indices        = new ();
         _mesh          = new Mesh();
@@ -549,7 +607,7 @@ public class Trixel : MonoBehaviour {
         Point head = new Point();
         Walk(true);
         
-        _mesh.vertices  = Vertices.Values.ToArray().ToVector3Array(); 
+        _mesh.vertices  = _points.Vertices.Values.ToArray().ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
@@ -611,11 +669,11 @@ public class Trixel : MonoBehaviour {
         Gizmos.DrawRay(_hitPoint, _direction);
         Gizmos.DrawSphere(_head, 0.15f);
         
-        if (Vertices == null || Vertices.Count == 0) {
+        if (_points == null || _points.Vertices == null || _points.Vertices.Count == 0) {
             return;
         }
         
-        foreach (var p in Vertices) {
+        foreach (var p in _points.Vertices) {
 
             if (!p.Value.Virtual) {
                 if (p.Value.Type == 0) {
