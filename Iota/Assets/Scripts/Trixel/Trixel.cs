@@ -481,8 +481,54 @@ public class Trixel : MonoBehaviour {
     //
     //     return caseIndex; 
     // }
+
+    Square EvalualateFaces(ref List<Point> list, bool first = true) {
+        for (int i = 0; i < list.Count; i++) {
+            var vp = list[i];
+            for (int k = 0; k < list.Count; k++) {
+                var vp1 = list[k];
+                if (i == k) {continue;}
+
+                var TL1 = vp.Face.indices[0];
+                var TR1 = vp.Face.indices[1];
+                var BR1 = vp.Face.indices[2];
+                var BL1 = vp.Face.indices[3];
+                     
+                var TL2 = vp1.Face.indices[0];
+                var TR2 = vp1.Face.indices[1];
+                var BR2 = vp1.Face.indices[2];
+                var BL2 = vp1.Face.indices[3];
+                     
+                if (BL2 == TL1) {
+                    vp.Face.indices[0] = TL2;
+                }
+                if (BR2 == TR1) {
+                    vp.Face.indices[1] = TR2;
+                }
+                if (TR2 == BR1) {
+                    vp.Face.indices[2] = BR2;
+                }
+                if (TL1 == TR2) {
+                    vp.Face.indices[0] = TL2;
+                }
+                if (BL1 == TL2) {
+                    vp.Face.indices[3] = BL2;
+                }
+                if (BL1 == BR2) {
+                    vp.Face.indices[3] = BL2;
+                }
+            }
+        }
+
+        if (first) {
+            return list[0].Face;
+        }
+        return list.Last().Face;
+        
+        return list[0].Face;
+    }
     
-    void Walk(bool inverted) {
+    void Walk(ref List<Square> s,  bool inverted) {
         int     flipFlop   = 1;
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
          
@@ -494,96 +540,35 @@ public class Trixel : MonoBehaviour {
              if (walkVector.z < -resolutionOffset.z) {
                  break;
              }
-        
+
              if (_points.Contains(walkVector) && !_points.IsActive(walkVector) && !_points.Checked(walkVector)) {
-                 Point p   = _points[Helpers.VectorKey(walkVector)];
+                 Point p = _points[Helpers.VectorKey(walkVector)];
                  _head = p.Position;
 
                  List<Point> frontHopList = new List<Point>();
                  _points.Hop(ref frontHopList, p.Position, Vector3.forward);
-                 
-                 // List<Point> leftHopList = new List<Point>();
-                 _points.Hop(ref frontHopList, p.Position, Vector3.left);
-                 
-                 // List<Point> rightHopList = new List<Point>();
-                 _points.Hop(ref frontHopList, p.Position, Vector3.right);
-                 
-                 // List<Point> backHopList = new List<Point>();
-                 _points.Hop(ref frontHopList, p.Position, Vector3.back);
-     
-                 for (int i = 0; i < frontHopList.Count; i++) {
-                     var vp      = frontHopList[i];
 
-                     for (int k = 0; k < frontHopList.Count; k++) {
-                         var vp1 = frontHopList[k];
-                         if (i == k) {continue;}
+                 List<Point> leftHopList = new List<Point>();
+                 _points.Hop(ref leftHopList, p.Position, Vector3.left);
 
-                         var TL1 = vp.Face.indices[0];
-                         var TR1 = vp.Face.indices[1];
-                         var BR1 = vp.Face.indices[2];
-                         var BL1 = vp.Face.indices[3];
-                     
-                         var TL2 = vp1.Face.indices[0];
-                         var TR2 = vp1.Face.indices[1];
-                         var BR2 = vp1.Face.indices[2];
-                         var BL2 = vp1.Face.indices[3];
-                     
-                         if (BL2 == TL1) {
-                             vp.Face.indices[0] = TL2;
-                         }
-                         if (BR2 == TR1) {
-                             vp.Face.indices[1] = TR2;
-                         }
-                         
-                         if (TR2 == BR1) {
-                             vp.Face.indices[2] = BR2;
-                         }
-                         if (TR1 == BR2) {
-                             vp.Face.indices[1] = BR2;
-                         }
-                         
-                         if (TL1 == TR2) {
-                             vp.Face.indices[0] = TL2;
-                         }
-                         if (BR1 == BL2) {
-                             vp.Face.indices[2] = BR2;
-                         }
-                     }
-                     Indices.AddRange(vp.Face.Dump());
-                   
-                     
-                     //
-                     //
-                     // var square = new Square(vp, vertices, TL1, TR1, BR1, BL1);
-                     //
-                     // // var square2 = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                     // //     indices2[0], indices2[1], indices2[2], indices2[3]);
-                     //
-                     //
-                     // Indices.AddRange(square.Dump());
-                     
+                 List<Point> rightHopList = new List<Point>();
+                 _points.Hop(ref rightHopList, p.Position, Vector3.right);
+
+                 List<Point> backHopList = new List<Point>();
+                 _points.Hop(ref backHopList, p.Position, Vector3.back);
+
+                 if (frontHopList.Count != 0) {
+                     s.Add(EvalualateFaces(ref frontHopList));
                  }
-                 
-                 // foreach (var vp in leftHopList) {
-                 //     var indices = CellState(vp);
-                 //     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                 //         indices[0], indices[1], indices[2], indices[3]);
-                 //     Indices.AddRange(square.Dump());
-                 // }
-                 //
-                 // foreach (var vp in rightHopList) {
-                 //     var indices = CellState(vp);
-                 //     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                 //         indices[0], indices[1], indices[2], indices[3]);
-                 //     Indices.AddRange(square.Dump());
-                 // }
-                 //
-                 // foreach (var vp in backHopList) {
-                 //     var indices = CellState(vp);
-                 //     var square = new Square(vp, Vertices.Values.ToArray().ToVector3Array(), 
-                 //         indices[0], indices[1], indices[2], indices[3]);
-                 //     Indices.AddRange(square.Dump());
-                 // }
+                 if (leftHopList.Count != 0) {
+                     s.Add(EvalualateFaces(ref leftHopList, false));
+                 }
+                 if (rightHopList.Count != 0) {
+                     s.Add(EvalualateFaces(ref rightHopList));
+                 }
+                 if (backHopList.Count != 0) {
+                     s.Add(EvalualateFaces(ref backHopList));
+                 }
              }
              walkVector.x += 1 * flipFlop;
          }
@@ -604,9 +589,56 @@ public class Trixel : MonoBehaviour {
 
         _points.ClearCheck();
         
-        Point head = new Point();
-        Walk(true);
-        
+        Point head  = new Point();
+        var   faces = new List<Square>();
+        Walk(ref faces, true);
+
+        // for (int i = 0; i < faces.ToList().Count; i++) {
+        //     var vp = faces[i];
+        //     for (int k = 0; k < faces.ToList().Count; k++) {
+        //         var vp1 = faces[k];
+        //         if (i == k) {continue;}
+        //
+        //         var TL1 = vp.indices[0];
+        //         var TR1 = vp.indices[1];
+        //         var BR1 = vp.indices[2];
+        //         var BL1 = vp.indices[3];
+        //              
+        //         var TL2 = vp1.indices[0];
+        //         var TR2 = vp1.indices[1];
+        //         var BR2 = vp1.indices[2];
+        //         var BL2 = vp1.indices[3];
+        //              
+        //         if (BL2 == TL1) {
+        //             vp.indices[0] = TL2;
+        //         }
+        //         if (BR2 == TR1) {
+        //             vp.indices[1] = TR2;
+        //         }
+        //                  
+        //         if (TR2 == BR1) {
+        //             vp.indices[2] = BR2;
+        //         }
+        //         if (TR1 == BR2) {
+        //             vp.indices[1] = BR2;
+        //         }
+        //                  
+        //         if (TL1 == TR2) {
+        //             vp.indices[0] = TL2;
+        //         }
+        //         if (BR1 == BL2) {
+        //             vp.indices[2] = BR2;
+        //         }
+        //         // faces.Remove(vp);
+        //     }
+        // }
+        if (faces.Count != 0) {
+            for (int i = 0; i < faces.Count; i++) {
+                Indices.AddRange(faces[i].Dump());
+            }
+
+        }
+ 
         _mesh.vertices  = _points.Vertices.Values.ToArray().ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
         _mesh.RecalculateBounds();
