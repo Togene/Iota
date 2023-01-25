@@ -103,6 +103,11 @@ public class Points {
     public ref Dictionary<string, Point> GetList() {
         return ref list;
     }
+    
+    public  List<Point> GetPointList() {
+        return  list.Values.ToList();
+    }
+        
     public Dictionary<string, Vertex> Vertices = new();
     
     public Point this[string a] {
@@ -395,39 +400,28 @@ public class Trixel : MonoBehaviour {
     
     // spiral walk
     void Walk2(ref List<Point> faces) {
-        int     flipFlop   = 1;
-        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-
-        bool streaming = false;
-        while (true) { // break added
-            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
-                walkVector.x =  - resolutionOffset.x;
-                walkVector.z -= 1;
+        List<Point> nullPoints = new();
+        foreach (var npoint in _points.GetPointList()) {
+            if (!npoint.Checked && !npoint.Active) {
+                nullPoints.Add(npoint);
             }
-            if (walkVector.z < -resolutionOffset.z) {
-                break;
-            }
+        }
 
-            if (_points.Contains(walkVector) && !_points.Checked(walkVector) && !_points.IsActive(walkVector)) {
-                streaming = true;
-                     
-                Point p = _points[Helpers.VectorKey(walkVector)];
-                _head = p.Position;
+        var c = new Vector3(Resolution, Resolution, Resolution) - resolutionOffset;
+        print($"{c}");
+        nullPoints.Sort((a, b) => Vector3.Distance(a.Position + resolutionOffset, c).CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
+        
+        foreach (var p in nullPoints) {
+            _head = p.Position;
 
-                List<Point> frontHopList = new List<Point>();
-                List<Point> leftHopList  = new List<Point>();
-                List<Point> rightHopList = new List<Point>();
-                List<Point> backHopList  = new List<Point>();
+            List<Point> frontHopList = new List<Point>();
+            List<Point> leftHopList  = new List<Point>();
+            List<Point> rightHopList = new List<Point>();
+            List<Point> backHopList  = new List<Point>();
 
-                AdjacentHope(p, ref faces, 
-                    ref frontHopList, ref leftHopList, 
-                    ref rightHopList, ref backHopList);
-            } else {
-                if (streaming) {
-                    print($"new face set needed bro"); 
-                }
-            }
-            walkVector.x += 1 * flipFlop;
+            AdjacentHope(p, ref faces,
+                ref frontHopList, ref leftHopList,
+                ref rightHopList, ref backHopList);
         }
     }
     
@@ -485,7 +479,7 @@ public class Trixel : MonoBehaviour {
         _points.ClearCheck();
         
         var   faces = new List<Point>();
-        Walk(ref faces);
+        Walk2(ref faces);
         
         faces.Sort((a, b) => a.Face.size.CompareTo(b.Face.size));
         if (faces.Count != 0) {
