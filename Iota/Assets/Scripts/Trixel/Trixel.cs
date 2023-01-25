@@ -26,8 +26,8 @@ public class Point {
         Position = p;
     }
 
-    public void SetFace(Vector3[] v, int TL, int TR, int BR, int BL) {
-        Face = new Square(this, v, TL, TR, BR, BL);
+    public void SetFace(Vertex[] v, int TL, int TR, int BR, int BL) {
+        Face = new Square(v, TL, TR, BR, BL);
     }
     
     public void SetFace(Square s) {
@@ -60,14 +60,16 @@ public class Vertex {
 public class Square {
     private Point                    p;
     private Dictionary <string, int> i = new();
-    private Vertex[]                 vertices;
-    public int[]                    indices;
+    public  float                      size;
+    // private Vertex[]                 vertices;
+    public  int[]                    indices;
     
     public Square(){}
     
-    public Square(Point p, Vector3[] v, int TL, int TR, int BR, int BL) {
-        indices = new[] { TL, TR, BR, BL };
-        p       = this.p;
+    public Square(Vertex[] v, int TL, int TR, int BR, int BL) {
+        indices  = new[] { TL, TR, BR, BL };
+        // vertices = new[] { v[TL], v[TR], v[BR], v[BL] };
+        p        = this.p;
         i.Add(Helpers.VectorKey(v[TL]), TL);
         i.Add(Helpers.VectorKey(v[TR]), TR);
         i.Add(Helpers.VectorKey(v[BR]), BR);
@@ -81,6 +83,10 @@ public class Square {
     public Square MergeTop() {
         var newSquare = new Square();
         return newSquare;
+    }
+
+    public void CalculateSize(Vertex a, Vertex b) {
+        size = (a.Vertice - b.Vertice).magnitude;
     }
 
     public int[] Dump() {
@@ -156,7 +162,7 @@ public class Points {
             
             var indices = CellState(list[(start + step).Key()]);
             list[(start + step).Key()].SetFace(
-                Vertices.Values.ToArray().ToVector3Array(), 
+                Vertices.Values.ToArray(), 
                 indices[0], indices[1], indices[2], indices[3]);
             
             ps.Add(list[(start + step).Key()]);
@@ -482,7 +488,8 @@ public class Trixel : MonoBehaviour {
     //     return caseIndex; 
     // }
 
-    Square EvalualateFaces(ref List<Point> list, bool first = true) {
+    Point EvalualatePoints(List<Point> list, bool first = true) {
+        var vertices = _points.Vertices.ToArray();
         for (int i = 0; i < list.Count; i++) {
             var vp = list[i];
             for (int k = 0; k < list.Count; k++) {
@@ -517,21 +524,75 @@ public class Trixel : MonoBehaviour {
                 if (BL1 == BR2) {
                     vp.Face.indices[3] = BL2;
                 }
+                vp.Face.CalculateSize(vertices[vp.Face.indices[0]].Value, vertices[vp.Face.indices[2]].Value);
             }
         }
-
-        if (first) {
-            return list[0].Face;
-        }
-        return list.Last().Face;
+        list.Sort((a, b) => b.Face.size.CompareTo(a.Face.size));
         
-        return list[0].Face;
+        if (first) {
+            print($"size {list[0].Face.size}");
+            return list[0];
+        }
+        print($"size {list.Last().Face.size}");
+        return list.Last();
+    }
+
+    void AdjacentHope(
+        Point p, ref List<List<Point>> faces, 
+        ref List<Point> fList, ref List<Point> lList, 
+        ref List<Point> rList, ref List<Point> bList) {
+        
+        List<Point> frontHopList = new List<Point>();
+        _points.Hop(ref frontHopList, p.Position, Vector3.forward);
+
+        List<Point> leftHopList = new List<Point>();
+        _points.Hop(ref leftHopList, p.Position, Vector3.left);
+
+        List<Point> rightHopList = new List<Point>();
+        _points.Hop(ref rightHopList, p.Position, Vector3.right);
+
+        List<Point> backHopList = new List<Point>();
+        _points.Hop(ref backHopList, p.Position, Vector3.back);
+
+        if (frontHopList.Count != 0) {
+            foreach (var fp in frontHopList) {
+                AdjacentHope(fp, ref faces, 
+                    ref frontHopList, ref leftHopList, 
+                    ref rightHopList, ref backHopList);
+            }
+            faces[0].Add(EvalualatePoints(frontHopList));
+        }
+        if (leftHopList.Count != 0) {
+            foreach (var lp in leftHopList) {
+                AdjacentHope(lp, ref faces, 
+                    ref frontHopList, ref leftHopList, 
+                    ref rightHopList, ref backHopList);
+            }
+            faces[1].Add(EvalualatePoints(leftHopList));
+        }
+        if (rightHopList.Count != 0) {
+            foreach (var rp in rightHopList) {
+                AdjacentHope(rp, ref faces, 
+                    ref frontHopList, ref leftHopList, 
+                    ref rightHopList, ref backHopList);
+            }
+            faces[2].Add(EvalualatePoints(rightHopList));
+        }
+        if (backHopList.Count != 0) {
+            foreach (var bp in backHopList) {
+                AdjacentHope(bp, ref faces, 
+                    ref frontHopList, ref leftHopList, 
+                    ref rightHopList, ref backHopList);
+            }
+            faces[3].Add(EvalualatePoints(backHopList));
+        }
     }
     
-    void Walk(ref List<Square> s,  bool inverted) {
+    void Walk(ref List<List<Point>> faces,  bool inverted) {
         int     flipFlop   = 1;
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-         
+
+        bool streaming = false;
          while (true) { // break added
              if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
                  walkVector.x =  - resolutionOffset.x;
@@ -541,33 +602,25 @@ public class Trixel : MonoBehaviour {
                  break;
              }
 
-             if (_points.Contains(walkVector) && !_points.IsActive(walkVector) && !_points.Checked(walkVector)) {
-                 Point p = _points[Helpers.VectorKey(walkVector)];
-                 _head = p.Position;
+             if (_points.Contains(walkVector) && !_points.Checked(walkVector) && !_points.IsActive(walkVector)) {
+                     streaming = true;
+                     
+                     Point p = _points[Helpers.VectorKey(walkVector)];
+                     _head = p.Position;
 
-                 List<Point> frontHopList = new List<Point>();
-                 _points.Hop(ref frontHopList, p.Position, Vector3.forward);
+                     List<Point> frontHopList = new List<Point>();
+                     List<Point> leftHopList = new List<Point>();
+                     List<Point> rightHopList = new List<Point>();
+                     List<Point> backHopList = new List<Point>();
 
-                 List<Point> leftHopList = new List<Point>();
-                 _points.Hop(ref leftHopList, p.Position, Vector3.left);
-
-                 List<Point> rightHopList = new List<Point>();
-                 _points.Hop(ref rightHopList, p.Position, Vector3.right);
-
-                 List<Point> backHopList = new List<Point>();
-                 _points.Hop(ref backHopList, p.Position, Vector3.back);
-
-                 if (frontHopList.Count != 0) {
-                     s.Add(EvalualateFaces(ref frontHopList));
-                 }
-                 if (leftHopList.Count != 0) {
-                     s.Add(EvalualateFaces(ref leftHopList, false));
-                 }
-                 if (rightHopList.Count != 0) {
-                     s.Add(EvalualateFaces(ref rightHopList));
-                 }
-                 if (backHopList.Count != 0) {
-                     s.Add(EvalualateFaces(ref backHopList));
+                     AdjacentHope(p, ref faces, 
+                         ref frontHopList, ref leftHopList, 
+                         ref rightHopList, ref backHopList);
+                     
+             } else {
+                 if (streaming) {
+                     print($"new face set needed bro"); 
+                     streaming = false;
                  }
              }
              walkVector.x += 1 * flipFlop;
@@ -590,53 +643,37 @@ public class Trixel : MonoBehaviour {
         _points.ClearCheck();
         
         Point head  = new Point();
-        var   faces = new List<Square>();
+        var   faces = new List<List<Point>> {
+            new (), // top
+            new (), // bottom
+            new (), // left
+            new (), // right
+        };
         Walk(ref faces, true);
 
-        // for (int i = 0; i < faces.ToList().Count; i++) {
-        //     var vp = faces[i];
-        //     for (int k = 0; k < faces.ToList().Count; k++) {
-        //         var vp1 = faces[k];
-        //         if (i == k) {continue;}
-        //
-        //         var TL1 = vp.indices[0];
-        //         var TR1 = vp.indices[1];
-        //         var BR1 = vp.indices[2];
-        //         var BL1 = vp.indices[3];
-        //              
-        //         var TL2 = vp1.indices[0];
-        //         var TR2 = vp1.indices[1];
-        //         var BR2 = vp1.indices[2];
-        //         var BL2 = vp1.indices[3];
-        //              
-        //         if (BL2 == TL1) {
-        //             vp.indices[0] = TL2;
-        //         }
-        //         if (BR2 == TR1) {
-        //             vp.indices[1] = TR2;
-        //         }
-        //                  
-        //         if (TR2 == BR1) {
-        //             vp.indices[2] = BR2;
-        //         }
-        //         if (TR1 == BR2) {
-        //             vp.indices[1] = BR2;
-        //         }
-        //                  
-        //         if (TL1 == TR2) {
-        //             vp.indices[0] = TL2;
-        //         }
-        //         if (BR1 == BL2) {
-        //             vp.indices[2] = BR2;
-        //         }
-        //         // faces.Remove(vp);
-        //     }
-        // }
-        if (faces.Count != 0) {
-            for (int i = 0; i < faces.Count; i++) {
-                Indices.AddRange(faces[i].Dump());
+        if (faces[0].Count != 0) {
+            for (int i = 0; i < faces[0].Count; i++) {
+                Indices.AddRange(faces[0][i].Face.Dump());
             }
-
+            //Indices.AddRange(EvalualatePoints(faces[0], false).Face.Dump());
+        }
+        if (faces[1].Count != 0) {
+            for (int i = 0; i < faces[1].Count; i++) {
+                Indices.AddRange(faces[1][i].Face.Dump());
+            }   
+            // Indices.AddRange(EvalualatePoints(faces[1]).Face.Dump());
+        }
+        if (faces[2].Count != 0) {
+            for (int i = 0; i < faces[2].Count; i++) {
+                Indices.AddRange(faces[2][i].Face.Dump());
+            }  
+            //Indices.AddRange(EvalualatePoints(faces[2]).Face.Dump());
+        }
+        if (faces[3].Count != 0) {
+            for (int i = 0; i < faces[3].Count; i++) {
+                Indices.AddRange(faces[3][i].Face.Dump());
+            }  
+            //Indices.AddRange(EvalualatePoints(faces[3], false).Face.Dump());
         }
  
         _mesh.vertices  = _points.Vertices.Values.ToArray().ToVector3Array(); 

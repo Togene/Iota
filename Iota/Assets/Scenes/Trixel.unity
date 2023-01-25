@@ -364,6 +364,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7af2abb0673974295bd16df72f9b1149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Resolution: 3
+  Resolution: 5
   RenderSpeed: 0
   Collider: {fileID: 0}
