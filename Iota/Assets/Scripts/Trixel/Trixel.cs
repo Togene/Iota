@@ -283,7 +283,6 @@ public class Trixel : MonoBehaviour {
 
     void Init() {
         _points          = new Points();
-        // Vertices         = new Dictionary<string, Vertex>();
         resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
         _mf.mesh         = new Mesh();
         
@@ -296,197 +295,6 @@ public class Trixel : MonoBehaviour {
             }
         }
     }
-
-    // int AddVertice(Vertex v, bool real, int type) {
-    //     if (!Vertices.ContainsKey(v.Key)) {
-    //         Vertices.Add(v.Key, v);
-    //         v.Virtual = !real;
-    //         v.Type    = type;
-    //         return Vertices.Count - 1;
-    //     }
-    //     // print($"duplicate found");
-    //     // if (Vertices[v.Key].Virtual) {
-    //     //OffsetVertices.Add(v.Key, v);
-    //     return Vertices.Keys.ToList().IndexOf(v.Key);
-    // }
-
-    // bool VerticeCondition(bool a, bool b, bool c) {
-    //     return a && b && c || !a && b && c || !a && !b && c || !a && b && !c || a && !b && !c;
-    // }
-    
-    
-    //     0 + step, -- Top Left
-    //     1 + step, -- Top Right
-    //     2 + step, -- Bottom Right
-    
-    //     0 + step, -- Top Left
-    //     3 + step, -- Bottom Left
-    //     2 + step  -- Bottom Right
-    // Dictionary<int, int> GenerateVerticesByRule(Point p) {
-    //     Dictionary<int, int> caseIndex = new();
-    //
-    //     // if completely surrounded, just ignore 🙄
-    //     if (_points.Surrounded(p)) {
-    //         p.Active = false;
-    //         return new ();
-    //     }
-    //
-    //     
-    //     if (VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p))) {
-    //         caseIndex.Add(0, -1);
-    //     }
-    //     if (VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p))) {
-    //         caseIndex.Add(1, -1);
-    //     }
-    //     if (VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p))) {
-    //         caseIndex.Add(2, -1);
-    //     }
-    //     if (VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p))) {
-    //         caseIndex.Add(3, -1);
-    //     }
-    //     
-    //     Dictionary<int, int> indiceMap = new();
-    //     int caseState = Case(Helpers.CaseKey(caseIndex));
-    //
-    //     switch (caseState) {
-    //         case 7: case 11: case 13: case 14: case 15: 
-    //             // top left
-    //             indiceMap.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2));
-    //             // top right
-    //             indiceMap.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2));
-    //             // bottom right
-    //             indiceMap.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2));
-    //             // bottom left
-    //             indiceMap.Add(3, AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2));
-    //             
-    //             var square = new Square(p, Vertices.Values.ToArray(),
-    //                 indiceMap[0], indiceMap[1], indiceMap[2], indiceMap[3]);
-    //             Indices.AddRange(square.Dump());
-    //             
-    //             break;
-    //         case 1 : // top left
-    //             AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2);
-    //             break;
-    //         case 2: // top right
-    //             AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2);
-    //             break;
-    //         case 4: // bottom right
-    //             AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2);
-    //             break;
-    //         case 8: // bottom left
-    //             AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2);
-    //             break;
-    //     }
-    //     
-    //     return indiceMap;
-    // }
-
-    // "1111" - full : TL, TR, BR, BL
-    //  TL ---- TR
-    //  |        |
-    //  |        |
-    //  BL ---- BR
-    // "0000" - empty
-    int Case(string caseKey) {
-        switch (caseKey) { 
-            //  o -- 
-            //  |    |
-            //    --
-             case "1000": // case 1
-                 return 1;
-            //    -- o
-            //  |    |
-            //    --
-            case "0100": // case 2
-                return 2;
-            //  o -- o
-            //  |    |
-            //    --
-            case "1100": // case 3
-                return 3;
-            //    --  
-            //  |    |
-            //    -- o
-            case "0010": // case 4
-                return 4;
-            //  o --  
-            //  |    |
-            //    -- o
-            case "1010": // case 5
-                return 5;
-            //    -- o 
-            //  |    |
-            //    -- o
-            case "0110":
-                return 6;
-            //  o -- o 
-            //  |    |
-            //    -- o
-            case "1110": // case 7
-                return 7;
-            //    -- 
-            //  |    |
-            //  o -- 
-            case "0001": // case 8
-                return 8;
-            //  o -- 
-            //  |    |
-            //  o --
-            case "1001": // case 9
-                return 9;
-             //    -- o
-             //  |    |
-             //  o --
-            case "0101": // case 10
-                return 10;
-            //  o -- o
-            //  |    |
-            //  o --
-            case "1101": // case 11
-                return 11;
-            //    -- 
-            //  |    |
-            //  o -- o
-            case "0011": // case 12
-                return 12;
-            //  o -- 
-            //  |    |
-            //  o -- o
-            case "1011": // case 13
-                return 13;
-            //    -- o
-            //  |    |
-            //  o -- o
-            case "0111": // case 14
-                return 14;
-            //  o -- o
-            //  |    |
-            //  o -- o
-            case "1111":
-                return 15;
-            default:
-                return 0;
-        }
-    }
-
-    // Dictionary<int, int> CellState(Point p) {
-    //     Dictionary<int, int> caseIndex = new();
-    //     
-    //     // TL
-    //     caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
-    //         VerticeCondition(!_points.ForwardLeft(p), !_points.Left(p), !_points.Forward(p)), 0));
-    //     // TR
-    //     caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
-    //         VerticeCondition(!_points.ForwardRight(p), !_points.Right(p), !_points.Forward(p)), 1));
-    //     // BR
-    //     caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
-    //         VerticeCondition(!_points.BackRight(p), !_points.Right(p), !_points.Back(p)), 2));
-    //     // BL
-    //     caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
-    //         VerticeCondition(!_points.BackLeft(p), !_points.Left(p), !_points.Back(p)), 3));
-    //
-    //     return caseIndex; 
-    // }
 
     Point EvalualatePoints(List<Point> list, bool first = true) {
         var vertices = _points.Vertices.ToArray();
@@ -528,12 +336,9 @@ public class Trixel : MonoBehaviour {
             }
         }
         list.Sort((a, b) => b.Face.size.CompareTo(a.Face.size));
-        
         if (first) {
-            print($"size {list[0].Face.size}");
             return list[0];
         }
-        print($"size {list.Last().Face.size}");
         return list.Last();
     }
 
@@ -588,7 +393,7 @@ public class Trixel : MonoBehaviour {
         }
     }
     
-    void Walk(ref List<List<Point>> faces,  bool inverted) {
+    void Walk(ref List<List<Point>> faces) {
         int     flipFlop   = 1;
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
 
@@ -616,11 +421,9 @@ public class Trixel : MonoBehaviour {
                      AdjacentHope(p, ref faces, 
                          ref frontHopList, ref leftHopList, 
                          ref rightHopList, ref backHopList);
-                     
              } else {
                  if (streaming) {
                      print($"new face set needed bro"); 
-                     streaming = false;
                  }
              }
              walkVector.x += 1 * flipFlop;
@@ -743,7 +546,6 @@ public class Trixel : MonoBehaviour {
         }
         
         foreach (var p in _points.Vertices) {
-
             if (!p.Value.Virtual) {
                 if (p.Value.Type == 0) {
                     Gizmos.color = Color.blue;
