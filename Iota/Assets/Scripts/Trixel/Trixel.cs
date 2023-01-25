@@ -343,7 +343,7 @@ public class Trixel : MonoBehaviour {
     }
 
     void AdjacentHope(
-        Point p, ref List<List<Point>> faces, 
+        Point p, ref List<Point> faces, 
         ref List<Point> fList, ref List<Point> lList, 
         ref List<Point> rList, ref List<Point> bList) {
         
@@ -365,7 +365,7 @@ public class Trixel : MonoBehaviour {
                     ref frontHopList, ref leftHopList, 
                     ref rightHopList, ref backHopList);
             }
-            faces[0].Add(EvalualatePoints(frontHopList));
+            faces.Add(EvalualatePoints(frontHopList));
         }
         if (leftHopList.Count != 0) {
             foreach (var lp in leftHopList) {
@@ -373,7 +373,7 @@ public class Trixel : MonoBehaviour {
                     ref frontHopList, ref leftHopList, 
                     ref rightHopList, ref backHopList);
             }
-            faces[1].Add(EvalualatePoints(leftHopList));
+            faces.Add(EvalualatePoints(leftHopList));
         }
         if (rightHopList.Count != 0) {
             foreach (var rp in rightHopList) {
@@ -381,7 +381,7 @@ public class Trixel : MonoBehaviour {
                     ref frontHopList, ref leftHopList, 
                     ref rightHopList, ref backHopList);
             }
-            faces[2].Add(EvalualatePoints(rightHopList));
+            faces.Add(EvalualatePoints(rightHopList));
         }
         if (backHopList.Count != 0) {
             foreach (var bp in backHopList) {
@@ -389,11 +389,50 @@ public class Trixel : MonoBehaviour {
                     ref frontHopList, ref leftHopList, 
                     ref rightHopList, ref backHopList);
             }
-            faces[3].Add(EvalualatePoints(backHopList));
+            faces.Add(EvalualatePoints(backHopList));
         }
     }
     
-    void Walk(ref List<List<Point>> faces) {
+    // spiral walk
+    void Walk2(ref List<Point> faces) {
+        int     flipFlop   = 1;
+        Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
+
+        bool streaming = false;
+        while (true) { // break added
+            if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
+                walkVector.x =  - resolutionOffset.x;
+                walkVector.z -= 1;
+            }
+            if (walkVector.z < -resolutionOffset.z) {
+                break;
+            }
+
+            if (_points.Contains(walkVector) && !_points.Checked(walkVector) && !_points.IsActive(walkVector)) {
+                streaming = true;
+                     
+                Point p = _points[Helpers.VectorKey(walkVector)];
+                _head = p.Position;
+
+                List<Point> frontHopList = new List<Point>();
+                List<Point> leftHopList  = new List<Point>();
+                List<Point> rightHopList = new List<Point>();
+                List<Point> backHopList  = new List<Point>();
+
+                AdjacentHope(p, ref faces, 
+                    ref frontHopList, ref leftHopList, 
+                    ref rightHopList, ref backHopList);
+            } else {
+                if (streaming) {
+                    print($"new face set needed bro"); 
+                }
+            }
+            walkVector.x += 1 * flipFlop;
+        }
+    }
+    
+    // scan walk
+    void Walk(ref List<Point> faces) {
         int     flipFlop   = 1;
         Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
 
@@ -445,38 +484,14 @@ public class Trixel : MonoBehaviour {
 
         _points.ClearCheck();
         
-        Point head  = new Point();
-        var   faces = new List<List<Point>> {
-            new (), // top
-            new (), // bottom
-            new (), // left
-            new (), // right
-        };
-        Walk(ref faces, true);
-
-        if (faces[0].Count != 0) {
-            for (int i = 0; i < faces[0].Count; i++) {
-                Indices.AddRange(faces[0][i].Face.Dump());
+        var   faces = new List<Point>();
+        Walk(ref faces);
+        
+        faces.Sort((a, b) => a.Face.size.CompareTo(b.Face.size));
+        if (faces.Count != 0) {
+            for (int i = 0; i < faces.Count; i++) {
+                Indices.AddRange(faces[i].Face.Dump());
             }
-            //Indices.AddRange(EvalualatePoints(faces[0], false).Face.Dump());
-        }
-        if (faces[1].Count != 0) {
-            for (int i = 0; i < faces[1].Count; i++) {
-                Indices.AddRange(faces[1][i].Face.Dump());
-            }   
-            // Indices.AddRange(EvalualatePoints(faces[1]).Face.Dump());
-        }
-        if (faces[2].Count != 0) {
-            for (int i = 0; i < faces[2].Count; i++) {
-                Indices.AddRange(faces[2][i].Face.Dump());
-            }  
-            //Indices.AddRange(EvalualatePoints(faces[2]).Face.Dump());
-        }
-        if (faces[3].Count != 0) {
-            for (int i = 0; i < faces[3].Count; i++) {
-                Indices.AddRange(faces[3][i].Face.Dump());
-            }  
-            //Indices.AddRange(EvalualatePoints(faces[3], false).Face.Dump());
         }
  
         _mesh.vertices  = _points.Vertices.Values.ToArray().ToVector3Array(); 
@@ -556,11 +571,12 @@ public class Trixel : MonoBehaviour {
                 } else if (p.Value.Type == 3) {
                     Gizmos.color = Color.green;
                 } 
+                Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
             }
             else {
                 Gizmos.color = Color.magenta;
             }
-            Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
+          
         }
         
         Gizmos.color = Color.cyan;
