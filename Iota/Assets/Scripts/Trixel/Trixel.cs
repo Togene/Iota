@@ -136,9 +136,6 @@ public class Points {
             v.Type    = type;
             return Vertices.Count - 1;
         }
-        // print($"duplicate found");
-        // if (Vertices[v.Key].Virtual) {
-        //OffsetVertices.Add(v.Key, v);
         return Vertices.Keys.ToList().IndexOf(v.Key);
     }
     
@@ -162,16 +159,16 @@ public class Points {
     }
     
     public void Hop(ref List<Point> ps, Vector3 start, Vector3 step) {
-        if (ContainsAndActive(start + step) && !Checked(start + step)) {
-            Hop(ref ps, start + step, step);
-            
-            var indices = CellState(list[(start + step).Key()]);
-            list[(start + step).Key()].SetFace(
-                Vertices.Values.ToArray(), 
+         Vector3 next = start + step;
+        if (ContainsAndActive(next) && !Checked(next)) {
+            var p       = list[(next).Key()];
+            ps.Add(p);
+            var indices = CellState(p);
+            p.SetFace(Vertices.Values.ToArray(), 
                 indices[0], indices[1], indices[2], indices[3]);
             
-            ps.Add(list[(start + step).Key()]);
-            list[(start + step).Key()].Checked = true;
+            Hop(ref ps, p.Position, step);
+            list[(next).Key()].Checked = true;
         }
     }
     
@@ -347,54 +344,54 @@ public class Trixel : MonoBehaviour {
         return list.Last();
     }
 
-    void AdjacentHope(
-        Point p, ref List<Point> faces, 
-        ref List<Point> fList, ref List<Point> lList, 
-        ref List<Point> rList, ref List<Point> bList) {
-        
-        List<Point> frontHopList = new List<Point>();
-        _points.Hop(ref frontHopList, p.Position, Vector3.forward);
-
-        List<Point> leftHopList = new List<Point>();
-        _points.Hop(ref leftHopList, p.Position, Vector3.left);
-
-        List<Point> rightHopList = new List<Point>();
-        _points.Hop(ref rightHopList, p.Position, Vector3.right);
-
-        List<Point> backHopList = new List<Point>();
-        _points.Hop(ref backHopList, p.Position, Vector3.back);
-
-        if (frontHopList.Count != 0) {
-            foreach (var fp in frontHopList) {
-                AdjacentHope(fp, ref faces, 
-                    ref frontHopList, ref leftHopList, 
-                    ref rightHopList, ref backHopList);
+    void AdjacentHope(Point p, ref List<Point> faces, bool f, bool b, bool l, bool r) {
+        if (f) {
+            List<Point> frontHopList = new List<Point>();
+            _points.Hop(ref frontHopList, p.Position, Vector3.forward);
+            
+            if (frontHopList.Count != 0) {
+                print($"front hop {frontHopList.Count}");
+                foreach (var fp in frontHopList) {
+                    AdjacentHope(fp, ref faces, false, false, true, true);
+                }
+                faces.Add(EvalualatePoints(frontHopList));
             }
-            faces.Add(EvalualatePoints(frontHopList));
         }
-        if (leftHopList.Count != 0) {
-            foreach (var lp in leftHopList) {
-                AdjacentHope(lp, ref faces, 
-                    ref frontHopList, ref leftHopList, 
-                    ref rightHopList, ref backHopList);
+
+        if (l) {
+            List<Point> leftHopList = new List<Point>();
+            _points.Hop(ref leftHopList, p.Position, Vector3.left);
+            
+            if (leftHopList.Count != 0) {
+                foreach (var lp in leftHopList) {
+                    AdjacentHope(lp, ref faces, false, false, false, false);
+                }
+                faces.Add(EvalualatePoints(leftHopList));
             }
-            faces.Add(EvalualatePoints(leftHopList));
         }
-        if (rightHopList.Count != 0) {
-            foreach (var rp in rightHopList) {
-                AdjacentHope(rp, ref faces, 
-                    ref frontHopList, ref leftHopList, 
-                    ref rightHopList, ref backHopList);
+
+        if (r) {
+            List<Point> rightHopList = new List<Point>();
+            _points.Hop(ref rightHopList, p.Position, Vector3.right);
+            
+            if (rightHopList.Count != 0 ) {
+                foreach (var rp in rightHopList) {
+                    AdjacentHope(rp, ref faces, false, false, false, false);
+                }
+                faces.Add(EvalualatePoints(rightHopList));
             }
-            faces.Add(EvalualatePoints(rightHopList));
         }
-        if (backHopList.Count != 0) {
-            foreach (var bp in backHopList) {
-                AdjacentHope(bp, ref faces, 
-                    ref frontHopList, ref leftHopList, 
-                    ref rightHopList, ref backHopList);
+
+        if (b) {
+            List<Point> backHopList = new List<Point>();
+            _points.Hop(ref backHopList, p.Position, Vector3.back);
+            
+            if (backHopList.Count != 0 && b) {
+                foreach (var bp in backHopList) {
+                    AdjacentHope(bp, ref faces, false, false, true, true);
+                }
+                faces.Add(EvalualatePoints(backHopList));
             }
-            faces.Add(EvalualatePoints(backHopList));
         }
     }
     
@@ -408,20 +405,11 @@ public class Trixel : MonoBehaviour {
         }
 
         var c = new Vector3(Resolution, Resolution, Resolution) - resolutionOffset;
-        print($"{c}");
         nullPoints.Sort((a, b) => Vector3.Distance(a.Position + resolutionOffset, c).CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
         
         foreach (var p in nullPoints) {
             _head = p.Position;
-
-            List<Point> frontHopList = new List<Point>();
-            List<Point> leftHopList  = new List<Point>();
-            List<Point> rightHopList = new List<Point>();
-            List<Point> backHopList  = new List<Point>();
-
-            AdjacentHope(p, ref faces,
-                ref frontHopList, ref leftHopList,
-                ref rightHopList, ref backHopList);
+            AdjacentHope(p, ref faces, true, true, true, true);
         }
     }
     
@@ -445,15 +433,8 @@ public class Trixel : MonoBehaviour {
                      
                      Point p = _points[Helpers.VectorKey(walkVector)];
                      _head = p.Position;
-
-                     List<Point> frontHopList = new List<Point>();
-                     List<Point> leftHopList = new List<Point>();
-                     List<Point> rightHopList = new List<Point>();
-                     List<Point> backHopList = new List<Point>();
-
-                     AdjacentHope(p, ref faces, 
-                         ref frontHopList, ref leftHopList, 
-                         ref rightHopList, ref backHopList);
+                     AdjacentHope(p, ref faces, true, true, true, true);
+                     
              } else {
                  if (streaming) {
                      print($"new face set needed bro"); 
