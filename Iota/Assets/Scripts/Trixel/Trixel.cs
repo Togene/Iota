@@ -352,43 +352,40 @@ public class Trixel : MonoBehaviour {
             if (frontHopList.Count != 0) {
                 print($"front hop {frontHopList.Count}");
                 foreach (var fp in frontHopList) {
-                    AdjacentHope(fp, ref faces, false, false, true, true);
+                    AdjacentHope(fp, ref faces, true, true, true, true);
                 }
                 faces.Add(EvalualatePoints(frontHopList));
             }
         }
-
         if (l) {
             List<Point> leftHopList = new List<Point>();
             _points.Hop(ref leftHopList, p.Position, Vector3.left);
             
             if (leftHopList.Count != 0) {
                 foreach (var lp in leftHopList) {
-                    AdjacentHope(lp, ref faces, false, false, false, false);
+                    AdjacentHope(lp, ref faces, true, true, true, true);
                 }
                 faces.Add(EvalualatePoints(leftHopList));
             }
         }
-
         if (r) {
             List<Point> rightHopList = new List<Point>();
             _points.Hop(ref rightHopList, p.Position, Vector3.right);
             
             if (rightHopList.Count != 0 ) {
                 foreach (var rp in rightHopList) {
-                    AdjacentHope(rp, ref faces, false, false, false, false);
+                    AdjacentHope(rp, ref faces, true, true, true, true);
                 }
                 faces.Add(EvalualatePoints(rightHopList));
             }
         }
-
         if (b) {
             List<Point> backHopList = new List<Point>();
             _points.Hop(ref backHopList, p.Position, Vector3.back);
             
             if (backHopList.Count != 0 && b) {
                 foreach (var bp in backHopList) {
-                    AdjacentHope(bp, ref faces, false, false, true, true);
+                    AdjacentHope(bp, ref faces, true, true, true, true);
                 }
                 faces.Add(EvalualatePoints(backHopList));
             }
@@ -404,12 +401,11 @@ public class Trixel : MonoBehaviour {
             }
         }
 
-        var c = new Vector3(Resolution, Resolution, Resolution) - resolutionOffset;
+        var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         nullPoints.Sort((a, b) => Vector3.Distance(a.Position + resolutionOffset, c).CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
-        
-        foreach (var p in nullPoints) {
-            _head = p.Position;
-            AdjacentHope(p, ref faces, true, true, true, true);
+
+        if (nullPoints.Count != 0) {
+            AdjacentHope(nullPoints[0], ref faces, true, true, true, true); 
         }
     }
     
