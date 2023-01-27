@@ -284,6 +284,7 @@ public class Trixel : MonoBehaviour {
     }
 
     void Init() {
+        _direction       = new Vector3();
         _points          = new Points();
         resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
         _mf.mesh         = new Mesh();
@@ -422,102 +423,110 @@ public class Trixel : MonoBehaviour {
         _points.Hop(ref r, p.Position, Vector3.right);
         _points.Hop(ref b, p.Position, Vector3.back);
     }
+
+    bool Contains(Point p, Vector3 dir) {
+        if (dir == Vector3.up) {
+            return !_points.Top(p) && _points.Down(p);
+        }
+        return false;
+    }
     
     // spiral walk
-    void Walk2(ref List<Point> faces) {
+    void Walk2(ref List<Point> faces, bool invert, Vector3 dir) {
         List<Point> nullPoints = new();
+
         foreach (var npoint in _points.GetPointList()) {
-            if (!npoint.Checked && !npoint.Active) {
+            if (!npoint.Checked && (invert) ? npoint.Active : !npoint.Active && Contains(npoint, dir)) {
                 nullPoints.Add(npoint);
             }
         }
-
+      
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         nullPoints.Sort((a, b) => Vector3.Distance(a.Position + resolutionOffset, c).CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
-        
-        
         
         
         List<Point> frontHopList = new List<Point>();
         List<Point> backHopList  = new List<Point>();
         List<Point> leftHopList  = new List<Point>();
         List<Point> rightHopList  = new List<Point>();
+
+        if (nullPoints.Count == 0) {
+            return;
+        };
         
-        if (nullPoints.Count != 0) {
-            foreach (var np in nullPoints) {
-                List<Point> localFront = new List<Point>();
-                List<Point> localBack  = new List<Point>();
-                List<Point> localLeft  = new List<Point>();
-                List<Point> localRight = new List<Point>();
-                
-                AdjacentHope(np, ref faces, 
-                    ref localFront, ref localBack, ref localLeft, ref localRight);
-                
-                if (localFront.Count != 0) {
-                    List<Point> tangentLeft  = new List<Point>();
-                    List<Point> tangentRight = new List<Point>();
-                    foreach (var fp in localFront) {
-                        _points.Hop(ref tangentLeft, fp.Position, Vector3.left);
-                        _points.Hop(ref tangentRight, fp.Position, Vector3.right);
-                    }
+        foreach (var np in nullPoints) {
+            List<Point> localFront = new List<Point>();
+            List<Point> localBack  = new List<Point>();
+            List<Point> localLeft  = new List<Point>();
+            List<Point> localRight = new List<Point>();
+            
+            AdjacentHope(np, ref faces, 
+                ref localFront, ref localBack, ref localLeft, ref localRight);
+            
+            if (localFront.Count != 0) {
+                List<Point> tangentLeft  = new List<Point>();
+                List<Point> tangentRight = new List<Point>();
+                foreach (var fp in localFront) {
+                    _points.Hop(ref tangentLeft, fp.Position, Vector3.left);
+                    _points.Hop(ref tangentRight, fp.Position, Vector3.right);
+                }
 
-                    if (tangentLeft.Count != 0) {
-                        localLeft.AddRange(EvalualatePoints(tangentLeft));
-                    }
-                    if (tangentRight.Count != 0) {
-                        localRight.AddRange(EvalualatePoints(tangentRight));
-                    }
-                    
-                    frontHopList.AddRange(EvalualatePoints(localFront));
+                if (tangentLeft.Count != 0) {
+                    localLeft.AddRange(EvalualatePoints(tangentLeft));
+                }
+                if (tangentRight.Count != 0) {
+                    localRight.AddRange(EvalualatePoints(tangentRight));
                 }
                 
-                if (localBack.Count != 0) {
-                    List<Point> tangentLeft  = new List<Point>();
-                    List<Point> tangentRight = new List<Point>();
-                    foreach (var fp in localBack) {
-                        _points.Hop(ref tangentLeft, fp.Position, Vector3.left);
-                        _points.Hop(ref tangentRight, fp.Position, Vector3.right);
-                    }
-
-                    if (tangentLeft.Count != 0) {
-                        localLeft.AddRange(EvalualatePoints(tangentLeft));
-                    }
-                    if (tangentRight.Count != 0) {
-                        localRight.AddRange(EvalualatePoints(tangentRight));
-                    }
-                    
-                    backHopList.AddRange(EvalualatePoints(localBack));
-                }
-                
-                if (localLeft.Count != 0) {
-                    leftHopList.AddRange(EvalualatePoints(localLeft));
-                }
-                
-                if (localRight.Count != 0) {
-                    rightHopList.AddRange(EvalualatePoints(localRight));
-                }
+                frontHopList.AddRange(EvalualatePoints(localFront));
             }
             
-            if (frontHopList.Count != 0) {
-                faces.AddRange(EvalualatePoints(frontHopList));
-            }
-                
-            if (backHopList.Count != 0) {
-                faces.AddRange(EvalualatePoints(backHopList));
-            }
-                
-            if (leftHopList.Count != 0) {
-                faces.AddRange(EvalualatePoints(leftHopList));
-            }
-                
-            if (rightHopList.Count != 0) {
-                faces.AddRange(EvalualatePoints(rightHopList));
-            }
+            if (localBack.Count != 0) {
+                List<Point> tangentLeft  = new List<Point>();
+                List<Point> tangentRight = new List<Point>();
+                foreach (var fp in localBack) {
+                    _points.Hop(ref tangentLeft, fp.Position, Vector3.left);
+                    _points.Hop(ref tangentRight, fp.Position, Vector3.right);
+                }
 
-            var final = new List<Point>();
-            final.AddRange(EvalualatePoints(faces));
-            faces = final;
+                if (tangentLeft.Count != 0) {
+                    localLeft.AddRange(EvalualatePoints(tangentLeft));
+                }
+                if (tangentRight.Count != 0) {
+                    localRight.AddRange(EvalualatePoints(tangentRight));
+                }
+                
+                backHopList.AddRange(EvalualatePoints(localBack));
+            }
+            
+            if (localLeft.Count != 0) {
+                leftHopList.AddRange(EvalualatePoints(localLeft));
+            }
+            
+            if (localRight.Count != 0) {
+                rightHopList.AddRange(EvalualatePoints(localRight));
+            }
         }
+        
+        if (frontHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(frontHopList));
+        }
+            
+        if (backHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(backHopList));
+        }
+            
+        if (leftHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(leftHopList));
+        }
+            
+        if (rightHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(rightHopList));
+        }
+
+        var final = new List<Point>();
+        final.AddRange(EvalualatePoints(faces));
+        faces = final;
     }
     
     // scan walk
@@ -551,7 +560,7 @@ public class Trixel : MonoBehaviour {
          }
     }
 
-    IEnumerator LittleBabysMarchingCubes() {
+    IEnumerator LittleBabysMarchingCubes(Vector3 dir) {
         Helpers.ClearConsole();
         
         _mf.mesh       = new Mesh();
@@ -567,11 +576,52 @@ public class Trixel : MonoBehaviour {
         _points.ClearCheck();
         
         var   faces = new List<Point>();
-        Walk2(ref faces);
+        Walk2(ref faces, false, dir);
+
+        if (faces.Count == 0) {
+            Walk2(ref faces, true, dir);
+        }
         
         faces.Sort((a, b) => a.Face.size.CompareTo(b.Face.size));
+        var vertices = _points.Vertices.Values.ToArray();
+            
         if (faces.Count != 0) {
             for (int i = 0; i < faces.Count; i++) {
+
+                var indices = faces[i].Face.indices;
+
+                if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[0]].Vertice))) {
+                    if (vertices[indices[0]].Virtual) {
+                        OffsetVertices.Add(
+                            Helpers.VectorKey(vertices[indices[0]].Vertice),
+                            vertices[indices[0]].Vertice);
+                    }
+                }
+
+                if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[1]].Vertice))) {
+                    if (vertices[indices[1]].Virtual) {
+                        OffsetVertices.Add(
+                            Helpers.VectorKey(vertices[indices[1]].Vertice), 
+                            vertices[indices[1]].Vertice);
+                    }
+                }
+                
+                if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[2]].Vertice))) {
+                    if (vertices[indices[2]].Virtual) {
+                        OffsetVertices.Add(
+                            Helpers.VectorKey(vertices[indices[2]].Vertice), 
+                            vertices[indices[2]].Vertice);
+                    }
+                }
+                
+                if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[3]].Vertice))) {
+                    if (vertices[indices[3]].Virtual) {
+                        OffsetVertices.Add(
+                            Helpers.VectorKey(vertices[indices[3]].Vertice), 
+                            vertices[indices[3]].Vertice);
+                    }
+                }
+                
                 Indices.AddRange(faces[i].Face.Dump());
             }
         }
@@ -608,14 +658,16 @@ public class Trixel : MonoBehaviour {
     // Update is called once per frame
     void Update() {
         if (MouseSelect()) {
-            if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
-                _points.SetPointsActive(_hitPoint - _direction/2, false);
-                StartCoroutine(LittleBabysMarchingCubes());
-            }
-            if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint - _direction/2)) {
-                _points.SetPointsActive(_hitPoint - _direction/2, true);
-                StartCoroutine(LittleBabysMarchingCubes());
-            }
+            if (_direction != null) {
+                if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
+                    _points.SetPointsActive(_hitPoint - _direction/2, false);
+                    StartCoroutine(LittleBabysMarchingCubes(_direction));
+                }
+                if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint - _direction/2)) {
+                    _points.SetPointsActive(_hitPoint - _direction/2, true);
+                    StartCoroutine(LittleBabysMarchingCubes(_direction));
+                }
+            };
         }
         
         if (Input.GetKeyDown(KeyCode.P)) {
@@ -658,7 +710,6 @@ public class Trixel : MonoBehaviour {
             else {
                 Gizmos.color = Color.magenta;
             }
-          
         }
         
         Gizmos.color = Color.cyan;
