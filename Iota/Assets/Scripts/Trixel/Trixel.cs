@@ -298,14 +298,16 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    Point EvalualatePoints(List<Point> list, bool first = true) {
+    List<Point> EvalualatePoints(List<Point> list, bool first = true) {
         var vertices = _points.Vertices.ToArray();
-        for (int i = 0; i < list.Count; i++) {
+        for (int i = 0; i < list.ToList().Count; i++) {
             var vp = list[i];
-            for (int k = 0; k < list.Count; k++) {
+            for (int k = 0; k < list.ToList().Count; k++) {
                 var vp1 = list[k];
                 if (i == k) {continue;}
 
+                // if (vp.Face.size != vp1.Face.size) return list;
+                
                 var TL1 = vp.Face.indices[0];
                 var TR1 = vp.Face.indices[1];
                 var BR1 = vp.Face.indices[2];
@@ -315,80 +317,70 @@ public class Trixel : MonoBehaviour {
                 var TR2 = vp1.Face.indices[1];
                 var BR2 = vp1.Face.indices[2];
                 var BL2 = vp1.Face.indices[3];
-                     
-                if (BL2 == TL1) {
-                    vp.Face.indices[0] = TL2;
+
+
+                bool connected = false;
+                
+                // vp1 on bottom
+                if (BL1 == TL2 && BR1 == TR2) {
+                    vp.Face.indices[2] = BR2;        
+                    vp.Face.indices[3] = BL2;
+                    connected          = true;
                 }
-                if (BR2 == TR1) {
+                
+                // vp1 on top
+                if (TL1 == BL2 && TR1 == BR2) {
+                    vp.Face.indices[0] = TL2;        
                     vp.Face.indices[1] = TR2;
+                    connected          = true;
                 }
-                if (TR2 == BR1) {
+                
+                // vp1 on right
+                if (TR1 == TL2 && BR1 == BL2) {
+                    vp.Face.indices[1] = TR2;        
                     vp.Face.indices[2] = BR2;
+                    connected          = true;
                 }
-                if (TL1 == TR2) {
-                    vp.Face.indices[0] = TL2;
-                }
-                if (BL1 == TL2) {
+                
+                // vp1 on left 
+                if (TL1 == TR2 && BL1 == BR2) {
+                    vp.Face.indices[0] = TL2;        
                     vp.Face.indices[3] = BL2;
-                }
-                if (BL1 == BR2) {
-                    vp.Face.indices[3] = BL2;
+                    connected          = true;
                 }
                 vp.Face.CalculateSize(vertices[vp.Face.indices[0]].Value, vertices[vp.Face.indices[2]].Value);
             }
         }
+        
         list.Sort((a, b) => b.Face.size.CompareTo(a.Face.size));
         if (first) {
-            return list[0];
+            return new List<Point>() { list[0] };
         }
-        return list.Last();
+        return new List<Point>() { list.Last()};
     }
 
-    void AdjacentHope(Point p, ref List<Point> faces, bool f, bool b, bool l, bool r) {
-        if (f) {
-            List<Point> frontHopList = new List<Point>();
-            _points.Hop(ref frontHopList, p.Position, Vector3.forward);
-            
-            if (frontHopList.Count != 0) {
-                print($"front hop {frontHopList.Count}");
-                foreach (var fp in frontHopList) {
-                    AdjacentHope(fp, ref faces, true, true, true, true);
-                }
-                faces.Add(EvalualatePoints(frontHopList));
-            }
+    void AdjacentHope(Point p, ref List<Point> faces, ref List<Point> f) {
+        // List<Point> frontHopList = new List<Point>();
+        _points.Hop(ref f, p.Position, Vector3.forward);
+        
+       
+        List<Point> leftHopList = new List<Point>();
+        _points.Hop(ref leftHopList, p.Position, Vector3.left);
+        
+        if (leftHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(leftHopList));
         }
-        if (l) {
-            List<Point> leftHopList = new List<Point>();
-            _points.Hop(ref leftHopList, p.Position, Vector3.left);
-            
-            if (leftHopList.Count != 0) {
-                foreach (var lp in leftHopList) {
-                    AdjacentHope(lp, ref faces, true, true, true, true);
-                }
-                faces.Add(EvalualatePoints(leftHopList));
-            }
+        List<Point> rightHopList = new List<Point>();
+        _points.Hop(ref rightHopList, p.Position, Vector3.right);
+        
+        if (rightHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(rightHopList));
         }
-        if (r) {
-            List<Point> rightHopList = new List<Point>();
-            _points.Hop(ref rightHopList, p.Position, Vector3.right);
-            
-            if (rightHopList.Count != 0 ) {
-                foreach (var rp in rightHopList) {
-                    AdjacentHope(rp, ref faces, true, true, true, true);
-                }
-                faces.Add(EvalualatePoints(rightHopList));
-            }
-        }
-        if (b) {
-            List<Point> backHopList = new List<Point>();
-            _points.Hop(ref backHopList, p.Position, Vector3.back);
-            
-            if (backHopList.Count != 0 && b) {
-                foreach (var bp in backHopList) {
-                    AdjacentHope(bp, ref faces, true, true, true, true);
-                }
-                faces.Add(EvalualatePoints(backHopList));
-            }
+        List<Point> backHopList = new List<Point>();
+        _points.Hop(ref backHopList, p.Position, Vector3.back);
+        
+        if (backHopList.Count != 0) {
+            faces.AddRange(EvalualatePoints(backHopList));
         }
     }
     
@@ -403,10 +395,37 @@ public class Trixel : MonoBehaviour {
 
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         nullPoints.Sort((a, b) => Vector3.Distance(a.Position + resolutionOffset, c).CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
+        
+        
+        // List<Point> tangentLeft  = new List<Point>();
+        // List<Point> tangentRight = new List<Point>();
+        // foreach (var fp in frontHopList) {
+        //     AdjacentHope(fp, ref tangentLeft, false, false, true, false);
+        //     AdjacentHope(fp, ref tangentRight, false, false, false, true);
+        // }
 
+        // if (tangentLeft.Count != 0) {
+        //     faces.AddRange(EvalualatePoints(tangentLeft));
+        // }
+        // if (tangentRight.Count != 0) {
+        //     faces.AddRange(EvalualatePoints(tangentRight));
+        // }
+        
+        List<Point> frontHopList = new List<Point>();
+        
         if (nullPoints.Count != 0) {
-            AdjacentHope(nullPoints[0], ref faces, true, true, true, true); 
+            foreach (var np in nullPoints) {
+                AdjacentHope(np, ref faces, ref frontHopList); 
+                
+                if (frontHopList.Count != 0) {
+                    faces.AddRange(EvalualatePoints(frontHopList));
+                }
+            }
         }
+        
+        // if (frontHopList.Count != 0) {
+        //     faces.AddRange(EvalualatePoints(frontHopList));
+        // }
     }
     
     // scan walk
@@ -429,7 +448,7 @@ public class Trixel : MonoBehaviour {
                      
                      Point p = _points[Helpers.VectorKey(walkVector)];
                      _head = p.Position;
-                     AdjacentHope(p, ref faces, true, true, true, true);
+                     // AdjacentHope(p, ref faces);
                      
              } else {
                  if (streaming) {
