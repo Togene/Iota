@@ -18,20 +18,44 @@ public class Point {
     public bool    Active   = false;
     public bool    Checked  = false;
     public Vector3 Position = new();
-    public Square  Face;
+    
+    public Square[]  Faces = new Square[6];
     
     public Point(){}
     public Point(Vector3 p, bool a) {
         Active   = a;
         Position = p;
     }
-
-    public void SetFace(Vertex[] v, int TL, int TR, int BR, int BL) {
-        Face = new Square(v, TL, TR, BR, BL);
+    
+    // public void SetFace(Vertex[] v, int TL, int TR, int BR, int BL) {
+    //     Faces[0] = new Square(v, TL, TR, BR, BL);
+    // }
+    
+    public void SetFaces(Vertex[] v, 
+        int TTL, int TTR, int TBR, int TBL, 
+        int BTL, int BTR, int BBR, int BBL) {
+        
+        // top face
+        Faces[0] = new Square(v, TTL, TTR, TBR, TBL);
+        
+        // bottom face
+        Faces[1] = new Square(v, BBL, BBR, BTR, BTL);
+        
+        // front face
+        Faces[2] = new Square(v, TBL, TBR, BBR, BBL);
+        
+        // back face
+        Faces[3] = new Square(v, TTR, TTL, BTL, BTR);
+        
+        // left face
+        Faces[4] = new Square(v, TTL, TBL, BBL, BTL);
+        
+        // right face
+        Faces[5] = new Square(v, TBR, TTR, BTR, BBR);
     }
     
     public void SetFace(Square s) {
-        Face = s;
+        Faces[0] = s;
     }
 }
 
@@ -130,7 +154,7 @@ public class Points {
     
     Dictionary<int, int> CellState(Point p) {
         Dictionary<int, int> caseIndex = new();
-        // TL
+            // TL
             caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
                 VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 0));
             // TR
@@ -142,6 +166,7 @@ public class Points {
             // BL
             caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
                 VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 3));
+            
             // TL
             caseIndex.Add(4, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.down) / 2, 
                 VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 4));
@@ -164,8 +189,10 @@ public class Points {
             var p       = list[(next).Key()];
             ps.Add(p);
             var indices = CellState(p);
-            p.SetFace(Vertices.Values.ToArray(), 
-                indices[0], indices[1], indices[2], indices[3]);
+            
+            p.SetFaces(Vertices.Values.ToArray(), 
+                indices[0], indices[1], indices[2], indices[3], 
+                indices[4], indices[5], indices[6], indices[7]);
             
             Hop(ref ps, p.Position, step);
             list[(next).Key()].Checked = true;
@@ -299,135 +326,111 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    List<Point> EvalualatePoints(List<Point> list) {
+    bool MergePoints(ref Point vp, ref Point vp1, int faceIndex) {
         var vertices = _points.Vertices.ToArray();
-        for (int i = 0; i < list.ToList().Count; i++) {
-            var vp = list[i];
-            for (int k = 0; k < list.ToList().Count; k++) {
-                var vp1 = list[k];
-                if (i == k) {continue;}
-
-                // if (vp.Face.size != vp1.Face.size) return list;
-                
-                var TL1 = vp.Face.indices[0];
-                var TR1 = vp.Face.indices[1];
-                var BR1 = vp.Face.indices[2];
-                var BL1 = vp.Face.indices[3];
-                     
-                var TL2 = vp1.Face.indices[0];
-                var TR2 = vp1.Face.indices[1];
-                var BR2 = vp1.Face.indices[2];
-                var BL2 = vp1.Face.indices[3];
-
-
-                bool connected = false;
-                // vp1 on bottom
-                if (BL1 == TL2 && BR1 == TR2) {
-                    vp.Face.indices[2] = BR2;        
-                    vp.Face.indices[3] = BL2;
-                    connected          = true;
-                }
-                
-                // vp1 on top
-                if (TL1 == BL2 && TR1 == BR2) {
-                    vp.Face.indices[0] = TL2;        
-                    vp.Face.indices[1] = TR2;
-                    connected          = true;
-                }
-                
-                // vp1 on right
-                if (TR1 == TL2 && BR1 == BL2) {
-                    vp.Face.indices[1] = TR2;        
-                    vp.Face.indices[2] = BR2;
-                    connected          = true;
-                }
-                
-                // vp1 on left 
-                if (TL1 == TR2 && BL1 == BR2) {
-                    vp.Face.indices[0] = TL2;        
-                    vp.Face.indices[3] = BL2;
-                    connected          = true;
-                }
-
-                if (connected) {
-                    list.Remove(vp1);
-                }
-                
-                vp.Face.CalculateSize(vertices[vp.Face.indices[0]].Value, vertices[vp.Face.indices[2]].Value);
-            }
-        }
         
-        for (int i = 0; i < list.ToList().Count; i++) {
-            var vp = list[i];
-            for (int k = 0; k < list.ToList().Count; k++) {
-                var vp1 = list[k];
-                if (i == k) {continue;}
-
-                // if (vp.Face.size != vp1.Face.size) return list;
-                
-                var TL1 = vp.Face.indices[0];
-                var TR1 = vp.Face.indices[1];
-                var BR1 = vp.Face.indices[2];
-                var BL1 = vp.Face.indices[3];
+        var TL1= vp.Faces[faceIndex].indices[0];
+        var TR1= vp.Faces[faceIndex].indices[1];
+        var BR1= vp.Faces[faceIndex].indices[2];
+        var BL1= vp.Faces[faceIndex].indices[3];
                      
-                var TL2 = vp1.Face.indices[0];
-                var TR2 = vp1.Face.indices[1];
-                var BR2 = vp1.Face.indices[2];
-                var BL2 = vp1.Face.indices[3];
-
-
-                bool connected = false;
-                // vp1 on bottom
-                if (BL1 == TL2 && BR1 == TR2) {
-                    vp.Face.indices[2] = BR2;        
-                    vp.Face.indices[3] = BL2;
-                    connected          = true;
-                }
-                
-                // vp1 on top
-                if (TL1 == BL2 && TR1 == BR2) {
-                    vp.Face.indices[0] = TL2;        
-                    vp.Face.indices[1] = TR2;
-                    connected          = true;
-                }
-                
-                // vp1 on right
-                if (TR1 == TL2 && BR1 == BL2) {
-                    vp.Face.indices[1] = TR2;        
-                    vp.Face.indices[2] = BR2;
-                    connected          = true;
-                }
-                
-                // vp1 on left 
-                if (TL1 == TR2 && BL1 == BR2) {
-                    vp.Face.indices[0] = TL2;        
-                    vp.Face.indices[3] = BL2;
-                    connected          = true;
-                }
-
-                if (connected) {
-                    list.Remove(vp1);
-                }
-                
-                vp.Face.CalculateSize(vertices[vp.Face.indices[0]].Value, vertices[vp.Face.indices[2]].Value);
-            }
+        var TL2 = vp1.Faces[faceIndex].indices[0];
+        var TR2 = vp1.Faces[faceIndex].indices[1];
+        var BR2 = vp1.Faces[faceIndex].indices[2];
+        var BL2 = vp1.Faces[faceIndex].indices[3];
+        
+        
+        bool connected = false;
+        // vp1 on bottom
+        if (BL1 == TL2 && BR1 == TR2) {
+            vp.Faces[faceIndex].indices[2] = BR2;        
+            vp.Faces[faceIndex].indices[3] = BL2;
+            connected                      = true;
         }
+                
+        // vp1 on top
+        if (TL1 == BL2 && TR1 == BR2) {
+            vp.Faces[faceIndex].indices[0] = TL2;        
+            vp.Faces[faceIndex].indices[1] = TR2;
+            connected                      = true;
+        }
+                
+        // vp1 on right
+        if (TR1 == TL2 && BR1 == BL2) {
+            vp.Faces[faceIndex].indices[1] = TR2;        
+            vp.Faces[faceIndex].indices[2] = BR2;
+            connected                      = true;
+        }
+                
+        // vp1 on left 
+        if (TL1 == TR2 && BL1 == BR2) {
+            vp.Faces[faceIndex].indices[0]         = TL2;        
+            vp.Faces[faceIndex].indices[3] = BL2;
+            connected                      = true;
+        }
+        vp.Faces[faceIndex].CalculateSize(
+            vertices[vp.Faces[faceIndex].indices[0]].Value, 
+            vertices[vp.Faces[faceIndex].indices[2]].Value);
+        return connected;
+    }
+    
+    List<Point> EvalualatePoints(List<Point> list) {
+        // for (int x = 0; x < 6; x++) {
+        //     if (x != 0) continue;
+        //     
+        //     for (int i = 0; i < list.ToList().Count; i++) {
+        //         var vp = list[i];
+        //         for (int k = 0; k < list.ToList().Count; k++) {
+        //             var vp1 = list[k];
+        //             if (i == k) {continue;}
+        //         
+        //
+        //             if (MergePoints(ref vp, ref vp1, x)) {
+        //                 list.Remove(vp1);
+        //             }
+        //         }
+        //     }
+        //
+        //     for (int i = 0; i < list.ToList().Count; i++) {
+        //         var vp = list[i];
+        //         for (int k = 0; k < list.ToList().Count; k++) {
+        //             var vp1 = list[k];
+        //             if (i == k) {continue;}
+        //         
+        //
+        //             if (MergePoints(ref vp, ref vp1, x)) {
+        //                 list.Remove(vp1);
+        //             }
+        //         }
+        //     }
+        // }
         return list;
     }
 
     void AdjacentHope(Point p, Vector3 dir, 
         ref List<Point> f, ref List<Point> b, ref List<Point> l , ref List<Point> r) {
-
-        if (dir == Vector3.up || dir == Vector3.down) {
+        
+        
+        // top surface walk
+        if (!_points.Top(p) || !_points.Down(p)) {
             _points.Hop(ref f, p.Position, Vector3.forward);
-            _points.Hop(ref l, p.Position, Vector3.left);
-            _points.Hop(ref r, p.Position, Vector3.right);
             _points.Hop(ref b, p.Position, Vector3.back);
-        } else if (dir == Vector3.forward || dir == Vector3.back) {
-            _points.Hop(ref f, p.Position, Vector3.up);
             _points.Hop(ref l, p.Position, Vector3.left);
             _points.Hop(ref r, p.Position, Vector3.right);
+        }
+        
+        if (!_points.Back(p) || !_points.Forward(p)) {
+            _points.Hop(ref f, p.Position, Vector3.up);
             _points.Hop(ref b, p.Position, Vector3.down);
+            _points.Hop(ref l, p.Position, Vector3.left);
+            _points.Hop(ref r, p.Position, Vector3.right);
+        }
+        
+        if (!_points.Left(p)) {
+            _points.Hop(ref f, p.Position, Vector3.up);
+            _points.Hop(ref b, p.Position, Vector3.down);
+            _points.Hop(ref l, p.Position, Vector3.back);
+            _points.Hop(ref r, p.Position, Vector3.forward);
         }
     }
 
@@ -583,13 +586,13 @@ public class Trixel : MonoBehaviour {
             //Walk2(ref faces, true, dir);
         }
         
-        faces.Sort((a, b) => a.Face.size.CompareTo(b.Face.size));
+        faces.Sort((a, b) => a.Faces[0].size.CompareTo(b.Faces[0].size));
         var vertices = _points.Vertices.Values.ToArray();
             
         if (faces.Count != 0) {
             for (int i = 0; i < faces.Count; i++) {
 
-                var indices = faces[i].Face.indices;
+                var indices = faces[i].Faces[0].indices;
 
                 if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[0]].Vertice))) {
                     if (vertices[indices[0]].Virtual) {
@@ -623,7 +626,12 @@ public class Trixel : MonoBehaviour {
                     }
                 }
                 
-                Indices.AddRange(faces[i].Face.Dump());
+                Indices.AddRange(faces[i].Faces[0].Dump());
+                Indices.AddRange(faces[i].Faces[1].Dump());
+                Indices.AddRange(faces[i].Faces[2].Dump());
+                Indices.AddRange(faces[i].Faces[3].Dump());
+                Indices.AddRange(faces[i].Faces[4].Dump());
+                Indices.AddRange(faces[i].Faces[5].Dump());
             }
         }
  
@@ -684,7 +692,7 @@ public class Trixel : MonoBehaviour {
        
         Gizmos.color = new Color(1,1,1,.4f);
         foreach (var p in _points.GetList()) {
-            if (p.Value.Active) Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
+            //if (p.Value.Active) Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
         }
         
         Gizmos.color = Color.green;
@@ -695,23 +703,23 @@ public class Trixel : MonoBehaviour {
             return;
         }
         
-        foreach (var p in _points.Vertices) {
-            if (!p.Value.Virtual) {
-                if (p.Value.Type == 0) {
-                    Gizmos.color = Color.blue;
-                } else if (p.Value.Type == 1) {
-                    Gizmos.color = Color.red;
-                } else if (p.Value.Type == 2) {
-                    Gizmos.color = Color.yellow;
-                } else if (p.Value.Type == 3) {
-                    Gizmos.color = Color.green;
-                } 
-                Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
-            }
-            else {
-                Gizmos.color = Color.magenta;
-            }
-        }
+        // foreach (var p in _points.Vertices) {
+        //     if (!p.Value.Virtual) {
+        //         if (p.Value.Type == 0) {
+        //             Gizmos.color = Color.blue;
+        //         } else if (p.Value.Type == 1) {
+        //             Gizmos.color = Color.red;
+        //         } else if (p.Value.Type == 2) {
+        //             Gizmos.color = Color.yellow;
+        //         } else if (p.Value.Type == 3) {
+        //             Gizmos.color = Color.green;
+        //         } 
+        //         Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
+        //     }
+        //     else {
+        //         Gizmos.color = Color.magenta;
+        //     }
+        // }
         
         Gizmos.color = Color.magenta;
         foreach (var p in OffsetVertices) {
