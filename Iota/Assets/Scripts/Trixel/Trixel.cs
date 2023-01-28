@@ -68,23 +68,12 @@ public class Square {
     
     public Square(Vertex[] v, int TL, int TR, int BR, int BL) {
         indices  = new[] { TL, TR, BR, BL };
-        // vertices = new[] { v[TL], v[TR], v[BR], v[BL] };
-        p        = this.p;
         i.Add(Helpers.VectorKey(v[TL]), TL);
         i.Add(Helpers.VectorKey(v[TR]), TR);
         i.Add(Helpers.VectorKey(v[BR]), BR);
         i.Add(Helpers.VectorKey(v[BL]), BL);
     }
     
-    public bool Contains(string key) {
-        return i.ContainsKey(key);
-    }
-    
-    public Square MergeTop() {
-        var newSquare = new Square();
-        return newSquare;
-    }
-
     public void CalculateSize(Vertex a, Vertex b) {
         size = (a.Vertice - b.Vertice).magnitude;
     }
@@ -141,25 +130,36 @@ public class Points {
     
     Dictionary<int, int> CellState(Point p) {
         Dictionary<int, int> caseIndex = new();
-        
         // TL
-        caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
-            VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 0));
-        // TR
-        caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
-            VerticeCondition(!ForwardRight(p), !Right(p), !Forward(p)), 1));
-        // BR
-        caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
-            VerticeCondition(!BackRight(p), !Right(p), !Back(p)), 2));
-        // BL
-        caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
-            VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 3));
-
-        return caseIndex; 
+            caseIndex.Add(0, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.up) / 2, 
+                VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 0));
+            // TR
+            caseIndex.Add(1, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.up) / 2,
+                VerticeCondition(!ForwardRight(p), !Right(p), !Forward(p)), 1));
+            // BR
+            caseIndex.Add(2, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.up) / 2, 
+                VerticeCondition(!BackRight(p), !Right(p), !Back(p)), 2));
+            // BL
+            caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
+                VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 3));
+            // TL
+            caseIndex.Add(4, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.down) / 2, 
+                VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 4));
+            // TR
+            caseIndex.Add(5, AddVertice(p.Position + (Vector3.forward + Vector3.right + Vector3.down) / 2,
+                VerticeCondition(!ForwardRight(p), !Right(p), !Forward(p)), 5));
+            // BR
+            caseIndex.Add(6, AddVertice(p.Position + (Vector3.back + Vector3.right + Vector3.down) / 2, 
+                VerticeCondition(!BackRight(p), !Right(p), !Back(p)), 6));
+            // BL
+            caseIndex.Add(7,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.down) / 2,
+                VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 7));
+            return caseIndex; 
     }
     
     public void Hop(ref List<Point> ps, Vector3 start, Vector3 step) {
          Vector3 next = start + step;
+         
         if (ContainsAndActive(next) && !Checked(next)) {
             var p       = list[(next).Key()];
             ps.Add(p);
@@ -415,34 +415,36 @@ public class Trixel : MonoBehaviour {
         return list;
     }
 
-    void AdjacentHope(Point p, ref List<Point> faces, 
+    void AdjacentHope(Point p, Vector3 dir, 
         ref List<Point> f, ref List<Point> b, ref List<Point> l , ref List<Point> r) {
-        
-        _points.Hop(ref f, p.Position, Vector3.forward);
-        _points.Hop(ref l, p.Position, Vector3.left);
-        _points.Hop(ref r, p.Position, Vector3.right);
-        _points.Hop(ref b, p.Position, Vector3.back);
+
+        if (dir == Vector3.up || dir == Vector3.down) {
+            _points.Hop(ref f, p.Position, Vector3.forward);
+            _points.Hop(ref l, p.Position, Vector3.left);
+            _points.Hop(ref r, p.Position, Vector3.right);
+            _points.Hop(ref b, p.Position, Vector3.back);
+        } else if (dir == Vector3.forward || dir == Vector3.back) {
+            _points.Hop(ref f, p.Position, Vector3.up);
+            _points.Hop(ref l, p.Position, Vector3.left);
+            _points.Hop(ref r, p.Position, Vector3.right);
+            _points.Hop(ref b, p.Position, Vector3.down);
+        }
     }
 
-    bool Contains(Point p, Vector3 dir) {
-        if (dir == Vector3.up) {
-            return !_points.Top(p) && _points.Down(p);
-        }
-        return false;
-    }
-    
     // spiral walk
     void Walk2(ref List<Point> faces, bool invert, Vector3 dir) {
         List<Point> nullPoints = new();
 
         foreach (var npoint in _points.GetPointList()) {
-            if (!npoint.Checked && (invert) ? npoint.Active : !npoint.Active && Contains(npoint, dir)) {
+            if (!npoint.Checked && (invert) ? npoint.Active : !npoint.Active) {
                 nullPoints.Add(npoint);
             }
         }
       
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
-        nullPoints.Sort((a, b) => Vector3.Distance(a.Position + resolutionOffset, c).CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
+        nullPoints.Sort((a, b) => 
+            Vector3.Distance(a.Position + resolutionOffset, c).
+                CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
         
         
         List<Point> frontHopList = new List<Point>();
@@ -460,8 +462,7 @@ public class Trixel : MonoBehaviour {
             List<Point> localLeft  = new List<Point>();
             List<Point> localRight = new List<Point>();
             
-            AdjacentHope(np, ref faces, 
-                ref localFront, ref localBack, ref localLeft, ref localRight);
+            AdjacentHope(np, dir, ref localFront, ref localBack, ref localLeft, ref localRight);
             
             if (localFront.Count != 0) {
                 List<Point> tangentLeft  = new List<Point>();
@@ -579,7 +580,7 @@ public class Trixel : MonoBehaviour {
         Walk2(ref faces, false, dir);
 
         if (faces.Count == 0) {
-            Walk2(ref faces, true, dir);
+            //Walk2(ref faces, true, dir);
         }
         
         faces.Sort((a, b) => a.Face.size.CompareTo(b.Face.size));
@@ -712,7 +713,7 @@ public class Trixel : MonoBehaviour {
             }
         }
         
-        Gizmos.color = Color.cyan;
+        Gizmos.color = Color.magenta;
         foreach (var p in OffsetVertices) {
             Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
         }
