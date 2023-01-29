@@ -12,6 +12,16 @@ public static class ExtensionMethods {
     public static Vector3[] ToVector3Array(this Vertex[] v) {
         return Array.ConvertAll(v, item => (Vector3)item);;
     }
+
+    public static Vector3 ExtractY(this Vector3 v) {
+        return new Vector3(0, v.y, 0);
+    }
+    public static Vector3 ExtractX(this Vector3 v) {
+        return new Vector3(v.x, 0, 0);
+    }
+    public static Vector3 ExtractZ(this Vector3 v) {
+        return new Vector3(0, 0, v.z);
+    }
 }
     
 public class Point {
@@ -277,6 +287,7 @@ public class Points {
 //     0 + step, -- Top Left        // 3
 //     2 + step, -- Bottom Right    // 4
 //     3 + step  -- Bottom Left     // 5
+
 public class Trixel : MonoBehaviour {
     [Range(2, 16)] public int                       Resolution;
     [Range(0.0f, 16.0f)] public float               RenderSpeed;
@@ -326,116 +337,248 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    bool MergePoints(ref Point vp, ref Point vp1, int faceIndex) {
-        var vertices = _points.Vertices.ToArray();
+    public class Surface {
+        private List<Point> Faces = new ();
+        public  Vector3     Normal;
+        public  int         SurfaceType;
         
-        var TL1= vp.Faces[faceIndex].indices[0];
-        var TR1= vp.Faces[faceIndex].indices[1];
-        var BR1= vp.Faces[faceIndex].indices[2];
-        var BL1= vp.Faces[faceIndex].indices[3];
+        List<Point>         frontList = new ();
+        List<Point>         backList  = new ();
+        List<Point>         leftList  = new ();
+        List<Point>         rightList = new ();
+        
+        public Surface() {
+        }
+        
+        public Surface(int type) {
+            SurfaceType = type;
+        }
+
+        Vector3 TypeToStepVector(string s) {
+            switch (s) {
+                case "front":
+                    switch (SurfaceType) {
+                        case 0: case 1: // top and bottom
+                            return Vector3.forward;
+                        case 2: case 3: // front and back
+                            return Vector3.up;
+                        case 4: case 5: // left and right
+                            return Vector3.up;
+                    }
+                    Debug.LogError("surface type not recognized");
+                    return Vector3.zero;
+                    break;
+                case "back":
+                    switch (SurfaceType) {
+                        case 0: case 1: // top and bottom
+                            return Vector3.back;
+                        case 2: case 3: // front and back
+                            return Vector3.down;
+                        case 4: case 5: // left and right
+                            return Vector3.down;
+                    }
+                    Debug.LogError("surface type not recognized");
+                    return Vector3.zero;
+                    break;
+                case "left":
+                    switch (SurfaceType) {
+                        case 0: case 1: // top and bottom
+                            return Vector3.left;
+                        case 2: case 3: // front and back
+                            return Vector3.left;
+                        case 4: case 5: // left and right
+                            return Vector3.forward;
+                    }
+                    Debug.LogError("surface type not recognized");
+                    return Vector3.zero;
+                    break;
+                case "right":
+                    switch (SurfaceType) {
+                        case 0: case 1: // top and bottom
+                            return Vector3.right;
+                        case 2: case 3: // front and back
+                            return Vector3.right;
+                        case 4: case 5: // left and right
+                            return Vector3.back;
+                    }
+                    Debug.LogError("surface type not recognized");
+                    return Vector3.zero;
+                    break;
+                default:
+                    Debug.LogError("step key not recognized");
+                    return Vector3.zero;
+            }
+        }
+       
+        public void SurfaceHop(Point p, ref Points points) {
+            Vector3 frontStep = TypeToStepVector("front");
+            Vector3 backStep  = TypeToStepVector("back");
+            Vector3 leftStep  = TypeToStepVector("left");
+            Vector3 rigtStep  = TypeToStepVector("right");
+            
+            List<Point> localFront = new List<Point>();
+            List<Point> localBack  = new List<Point>();
+            List<Point> localLeft  = new List<Point>();
+            List<Point> localRight = new List<Point>();
+            
+            points.Hop(ref localFront, p.Position, frontStep);
+            points.Hop(ref localBack, p.Position, backStep);
+            points.Hop(ref localLeft, p.Position, leftStep);
+            points.Hop(ref localRight, p.Position, rigtStep);
+            
+            if (localFront.Count != 0) {
+                List<Point> tangentLeft  = new List<Point>();
+                List<Point> tangentRight = new List<Point>();
+                foreach (var fp in localFront) {
+                    points.Hop(ref tangentLeft, fp.Position, leftStep);
+                    points.Hop(ref tangentRight, fp.Position, rigtStep);
+                }
+
+                if (tangentLeft.Count != 0) {
+                    localLeft.AddRange(EvalualatePoints(tangentLeft));
+                }
+                if (tangentRight.Count != 0) {
+                    localRight.AddRange(EvalualatePoints(tangentRight));
+                }
+                AddFront(EvalualatePoints(localFront));
+            }
+            
+            if (localBack.Count != 0) {
+                List<Point> tangentLeft  = new List<Point>();
+                List<Point> tangentRight = new List<Point>();
+                foreach (var fp in localBack) {
+                    points.Hop(ref tangentLeft, fp.Position, leftStep);
+                    points.Hop(ref tangentRight, fp.Position, rigtStep);
+                }
+
+                if (tangentLeft.Count != 0) {
+                    localLeft.AddRange(EvalualatePoints(tangentLeft));
+                }
+                if (tangentRight.Count != 0) {
+                    localRight.AddRange(EvalualatePoints(tangentRight));
+                }
+                AddBack(EvalualatePoints(localBack));
+            }
+            
+            if (localLeft.Count != 0) {
+                AddLeft(EvalualatePoints(localLeft));
+            }
+            if (localRight.Count != 0) {
+                AddRight(EvalualatePoints(localRight));
+            }
+        }
+        
+        public void AddFront(List<Point> p) {
+            frontList.AddRange(p);
+        }
+        public void AddBack(List<Point> p) {
+            backList.AddRange(p);
+        }
+        public void AddLeft(List<Point> p) {
+            leftList.AddRange(p);
+        }
+        public void AddRight(List<Point> p) {
+            rightList.AddRange(p);
+        }
+        
+        bool MergePoints(ref Point vp, ref Point vp1) {
+            // var vertices = _points.Vertices.ToArray();
+        
+            var TL1 = vp.Faces[SurfaceType].indices[0];
+            var TR1 = vp.Faces[SurfaceType].indices[1];
+            var BR1 = vp.Faces[SurfaceType].indices[2];
+            var BL1 = vp.Faces[SurfaceType].indices[3];
                      
-        var TL2 = vp1.Faces[faceIndex].indices[0];
-        var TR2 = vp1.Faces[faceIndex].indices[1];
-        var BR2 = vp1.Faces[faceIndex].indices[2];
-        var BL2 = vp1.Faces[faceIndex].indices[3];
+            var TL2 = vp1.Faces[SurfaceType].indices[0];
+            var TR2 = vp1.Faces[SurfaceType].indices[1];
+            var BR2 = vp1.Faces[SurfaceType].indices[2];
+            var BL2 = vp1.Faces[SurfaceType].indices[3];
         
         
-        bool connected = false;
-        // vp1 on bottom
-        if (BL1 == TL2 && BR1 == TR2) {
-            vp.Faces[faceIndex].indices[2] = BR2;        
-            vp.Faces[faceIndex].indices[3] = BL2;
-            connected                      = true;
-        }
+            bool connected = false;
+            // vp1 on bottom
+            if (BL1 == TL2 && BR1 == TR2) {
+                vp.Faces[SurfaceType].indices[2] = BR2;        
+                vp.Faces[SurfaceType].indices[3] = BL2;
+                connected                        = true;
+            }
                 
-        // vp1 on top
-        if (TL1 == BL2 && TR1 == BR2) {
-            vp.Faces[faceIndex].indices[0] = TL2;        
-            vp.Faces[faceIndex].indices[1] = TR2;
-            connected                      = true;
-        }
+            // vp1 on top
+            if (TL1 == BL2 && TR1 == BR2) {
+                vp.Faces[SurfaceType].indices[0] = TL2;        
+                vp.Faces[SurfaceType].indices[1] = TR2;
+                connected                        = true;
+            }
                 
-        // vp1 on right
-        if (TR1 == TL2 && BR1 == BL2) {
-            vp.Faces[faceIndex].indices[1] = TR2;        
-            vp.Faces[faceIndex].indices[2] = BR2;
-            connected                      = true;
-        }
+            // vp1 on right
+            if (TR1 == TL2 && BR1 == BL2) {
+                vp.Faces[SurfaceType].indices[1] = TR2;        
+                vp.Faces[SurfaceType].indices[2] = BR2;
+                connected                        = true;
+            }
                 
-        // vp1 on left 
-        if (TL1 == TR2 && BL1 == BR2) {
-            vp.Faces[faceIndex].indices[0]         = TL2;        
-            vp.Faces[faceIndex].indices[3] = BL2;
-            connected                      = true;
-        }
-        vp.Faces[faceIndex].CalculateSize(
-            vertices[vp.Faces[faceIndex].indices[0]].Value, 
-            vertices[vp.Faces[faceIndex].indices[2]].Value);
-        return connected;
-    }
-    
-    List<Point> EvalualatePoints(List<Point> list) {
-        // for (int x = 0; x < 6; x++) {
-        //     if (x != 0) continue;
-        //     
-        //     for (int i = 0; i < list.ToList().Count; i++) {
-        //         var vp = list[i];
-        //         for (int k = 0; k < list.ToList().Count; k++) {
-        //             var vp1 = list[k];
-        //             if (i == k) {continue;}
-        //         
-        //
-        //             if (MergePoints(ref vp, ref vp1, x)) {
-        //                 list.Remove(vp1);
-        //             }
-        //         }
-        //     }
-        //
-        //     for (int i = 0; i < list.ToList().Count; i++) {
-        //         var vp = list[i];
-        //         for (int k = 0; k < list.ToList().Count; k++) {
-        //             var vp1 = list[k];
-        //             if (i == k) {continue;}
-        //         
-        //
-        //             if (MergePoints(ref vp, ref vp1, x)) {
-        //                 list.Remove(vp1);
-        //             }
-        //         }
-        //     }
-        // }
-        return list;
-    }
-
-    void AdjacentHope(Point p, Vector3 dir, 
-        ref List<Point> f, ref List<Point> b, ref List<Point> l , ref List<Point> r) {
-        
-        
-        // top surface walk
-        if (!_points.Top(p) || !_points.Down(p)) {
-            _points.Hop(ref f, p.Position, Vector3.forward);
-            _points.Hop(ref b, p.Position, Vector3.back);
-            _points.Hop(ref l, p.Position, Vector3.left);
-            _points.Hop(ref r, p.Position, Vector3.right);
+            // vp1 on left 
+            if (TL1 == TR2 && BL1 == BR2) {
+                vp.Faces[SurfaceType].indices[0] = TL2;        
+                vp.Faces[SurfaceType].indices[3] = BL2;
+                connected                        = true;
+            }
+            // vp.Faces[faceIndex].CalculateSize(
+            //     vertices[vp.Faces[faceIndex].indices[0]].Value, 
+            //     vertices[vp.Faces[faceIndex].indices[2]].Value);
+            return connected;
         }
         
-        if (!_points.Back(p) || !_points.Forward(p)) {
-            _points.Hop(ref f, p.Position, Vector3.up);
-            _points.Hop(ref b, p.Position, Vector3.down);
-            _points.Hop(ref l, p.Position, Vector3.left);
-            _points.Hop(ref r, p.Position, Vector3.right);
+        List<Point> EvalualatePoints(List<Point> list) {
+            for (int i = 0; i < list.ToList().Count; i++) {
+                var vp = list[i];
+                for (int k = 0; k < list.ToList().Count; k++) {
+                    var vp1 = list[k];
+                    if (i == k) {continue;}
+                    if (MergePoints(ref vp, ref vp1)) {
+                        list.Remove(vp1);
+                    }
+                }
+            }
+            for (int i = 0; i < list.ToList().Count; i++) {
+                var vp = list[i];
+                for (int k = 0; k < list.ToList().Count; k++) {
+                    var vp1 = list[k];
+                    if (i == k) {continue;}
+                    if (MergePoints(ref vp, ref vp1)) {
+                        list.Remove(vp1);
+                    }
+                }
+            }
+            return list;
         }
         
-        if (!_points.Left(p)) {
-            _points.Hop(ref f, p.Position, Vector3.up);
-            _points.Hop(ref b, p.Position, Vector3.down);
-            _points.Hop(ref l, p.Position, Vector3.back);
-            _points.Hop(ref r, p.Position, Vector3.forward);
+        public List<Square> GetSurfaceFaces() {
+            var faces = new List<Square>();
+            
+            if (frontList.Count != 0) {
+                Faces.AddRange(EvalualatePoints(frontList));
+            }
+            if (backList.Count != 0) {
+                Faces.AddRange(EvalualatePoints(backList));
+            }
+            if (leftList.Count != 0) {
+                Faces.AddRange(EvalualatePoints(leftList));
+            }
+            if (rightList.Count != 0) {
+                Faces.AddRange(EvalualatePoints(rightList));
+            }
+            
+            var final = new List<Point>();
+            final.AddRange(EvalualatePoints(Faces));
+            foreach (var point in final) {
+                faces.Add(point.Faces[SurfaceType]);
+            }
+            return faces;
         }
     }
-
     // spiral walk
-    void Walk2(ref List<Point> faces, bool invert, Vector3 dir) {
+    void Walk2(ref List<Square> faces, bool invert, Vector3 dir) {
         List<Point> nullPoints = new();
 
         foreach (var npoint in _points.GetPointList()) {
@@ -449,88 +592,79 @@ public class Trixel : MonoBehaviour {
             Vector3.Distance(a.Position + resolutionOffset, c).
                 CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
         
-        
-        List<Point> frontHopList = new List<Point>();
-        List<Point> backHopList  = new List<Point>();
-        List<Point> leftHopList  = new List<Point>();
-        List<Point> rightHopList  = new List<Point>();
+        // var surface  = new Surface(4);
+        var surfaces = new Dictionary<Vector3, Surface>();
 
         if (nullPoints.Count == 0) {
             return;
         };
         
-        foreach (var np in nullPoints) {
-            List<Point> localFront = new List<Point>();
-            List<Point> localBack  = new List<Point>();
-            List<Point> localLeft  = new List<Point>();
-            List<Point> localRight = new List<Point>();
-            
-            AdjacentHope(np, dir, ref localFront, ref localBack, ref localLeft, ref localRight);
-            
-            if (localFront.Count != 0) {
-                List<Point> tangentLeft  = new List<Point>();
-                List<Point> tangentRight = new List<Point>();
-                foreach (var fp in localFront) {
-                    _points.Hop(ref tangentLeft, fp.Position, Vector3.left);
-                    _points.Hop(ref tangentRight, fp.Position, Vector3.right);
-                }
-
-                if (tangentLeft.Count != 0) {
-                    localLeft.AddRange(EvalualatePoints(tangentLeft));
-                }
-                if (tangentRight.Count != 0) {
-                    localRight.AddRange(EvalualatePoints(tangentRight));
-                }
-                
-                frontHopList.AddRange(EvalualatePoints(localFront));
-            }
-            
-            if (localBack.Count != 0) {
-                List<Point> tangentLeft  = new List<Point>();
-                List<Point> tangentRight = new List<Point>();
-                foreach (var fp in localBack) {
-                    _points.Hop(ref tangentLeft, fp.Position, Vector3.left);
-                    _points.Hop(ref tangentRight, fp.Position, Vector3.right);
-                }
-
-                if (tangentLeft.Count != 0) {
-                    localLeft.AddRange(EvalualatePoints(tangentLeft));
-                }
-                if (tangentRight.Count != 0) {
-                    localRight.AddRange(EvalualatePoints(tangentRight));
-                }
-                
-                backHopList.AddRange(EvalualatePoints(localBack));
-            }
-            
-            if (localLeft.Count != 0) {
-                leftHopList.AddRange(EvalualatePoints(localLeft));
-            }
-            
-            if (localRight.Count != 0) {
-                rightHopList.AddRange(EvalualatePoints(localRight));
-            }
-        }
         
-        if (frontHopList.Count != 0) {
-            faces.AddRange(EvalualatePoints(frontHopList));
-        }
+        // // top face
+        // Faces[0] = new Square(v, TTL, TTR, TBR, TBL);
+        //
+        // // bottom face
+        // Faces[1] = new Square(v, BBL, BBR, BTR, BTL);
+        //
+        // // front face
+        // Faces[2] = new Square(v, TBL, TBR, BBR, BBL);
+        //
+        // // back face
+        // Faces[3] = new Square(v, TTR, TTL, BTL, BTR);
+        //
+        // // left face
+        // Faces[4] = new Square(v, TTL, TBL, BBL, BTL);
+        //
+        // // right face
+        // Faces[5] = new Square(v, TBR, TTR, BTR, BBR);
+        
+        foreach (var np in nullPoints) {
+            // for each exposed surface, either create or add to exsiting surface
+ 
+            if (!_points.Top(np)) {
+                if (surfaces.ContainsKey(np.Position.ExtractY())) {
+                    surfaces[np.Position.ExtractY()].SurfaceHop(np, ref _points);
+                }
+                else {
+                    var newSurface = new Surface(0);
+                    newSurface.SurfaceHop(np, ref _points);
+                    surfaces.Add(np.Position.ExtractY(), newSurface);
+                } 
+            }
             
-        if (backHopList.Count != 0) {
-            faces.AddRange(EvalualatePoints(backHopList));
-        }
-            
-        if (leftHopList.Count != 0) {
-            faces.AddRange(EvalualatePoints(leftHopList));
-        }
-            
-        if (rightHopList.Count != 0) {
-            faces.AddRange(EvalualatePoints(rightHopList));
-        }
+            if (!_points.Left(np)) {
+                // if (surfaces.ContainsKey(np.Position.ExtractX())) {
+                //     surfaces[np.Position.ExtractX()].SurfaceHop(np, ref _points);
+                // } else {
+                //     var newSurface = new Surface(4);
+                //     newSurface.SurfaceHop(np, ref _points);
+                //     surfaces.Add(np.Position.ExtractX(), newSurface);
+                // } 
+            }
 
-        var final = new List<Point>();
-        final.AddRange(EvalualatePoints(faces));
-        faces = final;
+            
+            if (!_points.Down(np)) {
+            }
+            if (!_points.Right(np)) {
+            }
+            if (!_points.Forward(np)) {
+            }
+            if (!_points.Back(np)) {
+                // if (surfaces.ContainsKey(np.Position.ExtractZ())) {
+                //     surfaces[np.Position.ExtractZ()].SurfaceHop(np, ref _points);
+                // }
+                // else {
+                //     var newSurface = new Surface(2);
+                //     newSurface.SurfaceHop(np, ref _points);
+                //     surfaces.Add(np.Position.ExtractZ(), newSurface);
+                // } 
+            }
+        }
+        print($"surfaces {surfaces.Count}");
+        foreach (var surface in surfaces) {
+            print($"{surface.Key}");
+            faces = surface.Value.GetSurfaceFaces();
+        }
     }
     
     // scan walk
@@ -579,20 +713,19 @@ public class Trixel : MonoBehaviour {
 
         _points.ClearCheck();
         
-        var   faces = new List<Point>();
+        var   faces = new List<Square>();
         Walk2(ref faces, false, dir);
 
         if (faces.Count == 0) {
             //Walk2(ref faces, true, dir);
         }
         
-        faces.Sort((a, b) => a.Faces[0].size.CompareTo(b.Faces[0].size));
+        faces.Sort((a, b) => a.size.CompareTo(b.size));
         var vertices = _points.Vertices.Values.ToArray();
             
         if (faces.Count != 0) {
             for (int i = 0; i < faces.Count; i++) {
-
-                var indices = faces[i].Faces[0].indices;
+                var indices = faces[i].indices;
 
                 if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[0]].Vertice))) {
                     if (vertices[indices[0]].Virtual) {
@@ -626,12 +759,7 @@ public class Trixel : MonoBehaviour {
                     }
                 }
                 
-                Indices.AddRange(faces[i].Faces[0].Dump());
-                Indices.AddRange(faces[i].Faces[1].Dump());
-                Indices.AddRange(faces[i].Faces[2].Dump());
-                Indices.AddRange(faces[i].Faces[3].Dump());
-                Indices.AddRange(faces[i].Faces[4].Dump());
-                Indices.AddRange(faces[i].Faces[5].Dump());
+                Indices.AddRange(faces[i].Dump());
             }
         }
  
