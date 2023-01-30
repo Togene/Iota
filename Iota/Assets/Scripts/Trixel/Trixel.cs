@@ -14,13 +14,31 @@ public static class ExtensionMethods {
     }
 
     public static Vector3 ExtractY(this Vector3 v) {
-        return new Vector3(0, v.y, 0);
+        var y = v.y;
+
+        if (y == 0) {
+            y = -99;
+        }
+        
+        return new Vector3(0, y, 0);
     }
     public static Vector3 ExtractX(this Vector3 v) {
-        return new Vector3(v.x, 0, 0);
+        var x = v.x;
+
+        if (x == 0) {
+            x = -99;
+        }
+        
+        return new Vector3(x, 0, 0);
     }
     public static Vector3 ExtractZ(this Vector3 v) {
-        return new Vector3(0, 0, v.z);
+        var z = v.z;
+
+        if (z == 0) {
+            z = -99;
+        }
+        
+        return new Vector3(0, 0, z);
     }
 }
     
@@ -215,8 +233,7 @@ public class Points {
     }
     
     public void Hop(ref List<Square> ps, Vector3 start, Vector3 step, int checkType) {
-         Vector3 next = start + step;
-         
+        Vector3 next = start + step;
         if (ContainsAndActive(next) && !Checked(next, checkType) && !ActiveByCheckType(checkType, next)) {
             var p       = list[(next).Key()];
             
@@ -258,6 +275,9 @@ public class Points {
     }
     public bool Back(Point p) {
         return ContainsAndActive(p.Position + Vector3.back);
+    }
+    public bool ContainsAndActiveAt(Vector3 v) {
+        return list.ContainsKey(v.Key()) && list[v.Key()].Active;
     }
     // x-axis, z-y
     public bool ForwardTop(Point p) {
@@ -319,12 +339,12 @@ public class Trixel : MonoBehaviour {
     //private Dictionary<string, Vertex> Vertices = new();
     // private Vector3[]                  Vertices       = new[] { };
     private Dictionary<string,Vertex> OffsetVertices = new();
-    private List<int>                 TestIndices    = new ();
+    private List<Vector3>                 SurfaceTests    = new ();
     
     private List<int>   Indices = new();
     public  BoxCollider Collider;
     private Vector3     _direction, _hitPoint, _head;
-    
+    public Material mat;
     // private new _indiceTracker = 
     
     private Vector3 resolutionOffset;
@@ -339,7 +359,7 @@ public class Trixel : MonoBehaviour {
         
         _mf          = this.AddComponent<MeshFilter>();
         _mr          = this.AddComponent<MeshRenderer>();
-        _mr.material = new Material(Shader.Find("Diffuse"));
+        _mr.material = mat;
         
         Init();
     }
@@ -358,12 +378,7 @@ public class Trixel : MonoBehaviour {
                 }
             }
         }
-
-        foreach (var points in _points.GetList()) {
-            if (_points.Surrounded(points.Value)) {
-                // points.Value.Active = false;
-            }
-        }
+        StartCoroutine(LittleBabysMarchingCubes(Vector3.zero));
     }
 
     public class Surface {
@@ -435,7 +450,7 @@ public class Trixel : MonoBehaviour {
             }
         }
        
-        public void SurfaceHop(Point p, ref Points points) {
+        public void SurfaceHop(Point p, ref Points points, bool includeStart) {
             Vector3 frontStep = TypeToStepVector("front");
             Vector3 backStep  = TypeToStepVector("back");
             Vector3 leftStep  = TypeToStepVector("left");
@@ -506,8 +521,6 @@ public class Trixel : MonoBehaviour {
         }
         
         bool MergePoints(ref Square vp, ref Square vp1) {
-            // var vertices = _points.Vertices.ToArray();
-        
             var TL1 = vp.indices[0];
             var TR1 = vp.indices[1];
             var BR1 = vp.indices[2];
@@ -520,28 +533,24 @@ public class Trixel : MonoBehaviour {
             
             bool connected = false;
 
-            // if (SurfaceType == 0) {
             // vp1 on bottom        
             if (BL1 == TL2 && BR1 == TR2) {
                 vp.indices[2] = BR2;        
                 vp.indices[3] = BL2;
                 connected                        = true;
             }
-            
             // vp1 on top
             if (TL1 == BL2 && TR1 == BR2) {
                 vp.indices[0] = TL2;        
                 vp.indices[1] = TR2;
                 connected                        = true;
             }
-            
             // vp1 on right
             if (TR1 == TL2 && BR1 == BL2) {
                 vp.indices[1] = TR2;        
                 vp.indices[2] = BR2;
                 connected                        = true;
             }
-            
             // vp1 on left 
             if (TL1 == TR2 && BL1 == BR2) {
                 vp.indices[0] = TL2;        
@@ -555,6 +564,10 @@ public class Trixel : MonoBehaviour {
         }
         
         List<Square> EvalualatePoints(List<Square> list) {
+            if (list.Count == 1) {
+                return list;
+            }
+            
             for (int i = 0; i < list.ToList().Count; i++) {
                 var vp = list[i];
                 for (int k = 0; k < list.ToList().Count; k++) {
@@ -579,13 +592,13 @@ public class Trixel : MonoBehaviour {
                     }
                 }
             }
-            //
-            // list.Sort((a, b) => 
-            //     a.Faces[SurfaceType].size.CompareTo(b.Faces[SurfaceType].size));
-
             return list;
         }
-        
+
+        public bool Buffered() {
+            return frontList.Count != 0 || backList.Count != 0 || leftList.Count != 0 || rightList.Count != 0;
+        }
+
         public List<Square> GetSurfaceFaces() {
             var faces = new List<Square>();
             
@@ -610,139 +623,106 @@ public class Trixel : MonoBehaviour {
             return faces;
         }
     }
+
+    void HandleSurfaces(ref Dictionary<Vector3, Surface> surfaces, Point np) {
+        if (surfaces.ContainsKey(np.Position.ExtractZ())) {
+            surfaces[np.Position.ExtractZ()].SurfaceHop(np, ref _points, true);
+        } 
+        if (surfaces.ContainsKey(np.Position.ExtractX())) {
+            surfaces[np.Position.ExtractX()].SurfaceHop(np, ref _points, true);
+        }
+        if (surfaces.ContainsKey(np.Position.ExtractY())) {
+            surfaces[np.Position.ExtractY()].SurfaceHop(np, ref _points, true);
+        }
+    }
+    
     // spiral walk
-    void Walk2(ref List<Square> faces, bool invert, Vector3 dir) {
+    void Walk2(ref List<Square> faces) {
         List<Point> nullPoints = new();
+        var         surfaces   = new Dictionary<Vector3, Surface>();
         
-        // !npoint.Checked && 
-        foreach (var npoint in _points.GetPointList()) {
-            if ((invert) ? npoint.Active : !npoint.Active) {
-                nullPoints.Add(npoint);
+        foreach (var p in _points.GetPointList()) {
+            // top and bottom
+            if (!_points.Top(p) && p.Active) {
+                if (!surfaces.ContainsKey(p.Position.ExtractY())) {
+                    surfaces.Add(p.Position.ExtractY(), new Surface(0));
+                }
+            }
+            if (!_points.Down(p) && p.Active) {
+                if (!surfaces.ContainsKey(p.Position.ExtractY())) {
+                    surfaces.Add(p.Position.ExtractY(), new Surface(1));
+                }
+            }
+            // // front and back
+            if (!_points.Forward(p) && p.Active) {
+                if (!surfaces.ContainsKey(p.Position.ExtractZ())) {
+                    surfaces.Add(p.Position.ExtractZ(), new Surface(2));
+                }
+            }
+            if (!_points.Back(p) && p.Active) {
+                if (!surfaces.ContainsKey(p.Position.ExtractZ())) {
+                    surfaces.Add(p.Position.ExtractZ(), new Surface(3));
+                }
+            }
+            // left and right
+            if (!_points.Left(p) && p.Active) {
+                if (!surfaces.ContainsKey(p.Position.ExtractX())) {
+                    surfaces.Add(p.Position.ExtractX(), new Surface(4));
+                }
+                
+            } 
+            if (!_points.Right(p) && p.Active) {
+                if (!surfaces.ContainsKey(p.Position.ExtractX())) {
+                    surfaces.Add(p.Position.ExtractX(), new Surface(5));
+                }
+            }
+            
+            // void hoppers
+            if (!p.Active) {
+                nullPoints.Add(p);
             }
         }
-      
+
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         nullPoints.Sort((a, b) => 
             Vector3.Distance(a.Position + resolutionOffset, c).
                 CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
         
-        // var surface  = new Surface(4);
-        var surfaces = new Dictionary<Vector3, Surface>();
+        foreach (var np in nullPoints.ToList()) {
+            HandleSurfaces(ref surfaces, np);
+        }
 
-        if (nullPoints.Count == 0) {
-            return;
-        };
-        
-        
-        // // top face
-        // Faces[0] = new Square(v, TTL, TTR, TBR, TBL);
-        //
-        // // bottom face
-        // Faces[1] = new Square(v, BBL, BBR, BTR, BTL);
-        //
-        // // front face
-        // Faces[2] = new Square(v, TBL, TBR, BBR, BBL);
-        //
-        // // back face
-        // Faces[3] = new Square(v, TTR, TTL, BTL, BTR);
-        //
-        // // left face
-        // Faces[4] = new Square(v, TTL, TBL, BBL, BTL);
-        //
-        // // right face
-        // Faces[5] = new Square(v, TBR, TTR, BTR, BBR);
-        
-        foreach (var np in nullPoints) {
-            // for each exposed surface, either create or add to exsiting surface
-            if (!_points.Back(np)) {
-                if (surfaces.ContainsKey(np.Position.ExtractZ())) {
-                    surfaces[np.Position.ExtractZ()].SurfaceHop(np, ref _points);
-                } else {
-                    var newSurface = new Surface(3);
-                    newSurface.SurfaceHop(np, ref _points);
-                    surfaces.Add(np.Position.ExtractZ(), newSurface);
-                } 
-            }
-            if (!_points.Left(np)) {
-                if (surfaces.ContainsKey(np.Position.ExtractX())) {
-                    surfaces[np.Position.ExtractX()].SurfaceHop(np, ref _points);
-                } else {
-                    var newSurface = new Surface(4);
-                    newSurface.SurfaceHop(np, ref _points);
-                    surfaces.Add(np.Position.ExtractX(), newSurface);
-                } 
-            }
-            if (!_points.Top(np)) {
-                if (surfaces.ContainsKey(np.Position.ExtractY())) {
-                    surfaces[np.Position.ExtractY()].SurfaceHop(np, ref _points);
-                }
-                else {
-                    var newSurface = new Surface(0);
-                    newSurface.SurfaceHop(np, ref _points);
-                    surfaces.Add(np.Position.ExtractY(), newSurface);
-                } 
-            }
-         
-            if (!_points.Down(np)) {
-            }
-            if (!_points.Right(np)) {
+        foreach (var surface in surfaces.ToList()) {
+            if (surface.Value.Buffered()) {
+                faces.AddRange(surface.Value.GetSurfaceFaces());
+                 surfaces.Remove(surface.Key);
             }
         }
-        // print($"surfaces {surfaces.Count}");
-        foreach (var surface in surfaces) {
-            // print($"{surface.Key}");
-            faces.AddRange(surface.Value.GetSurfaceFaces());
+
+        if (surfaces.Count != 0) {
+            foreach (var surface in surfaces.ToList()) {
+                if (!surface.Value.Buffered()) {
+                    print($"{surface.Key}");
+                }
+            }
         }
     }
-    
-    // scan walk
-    // void Walk(ref List<Point> faces) {
-    //     int     flipFlop   = 1;
-    //     Vector3 walkVector = new Vector3(0, Resolution - 1, Resolution - 1) - resolutionOffset;
-    //
-    //     bool streaming = false;
-    //      while (true) { // break added
-    //          if (walkVector.x > Resolution - 1 || walkVector.x < - resolutionOffset.x) {
-    //              walkVector.x =  - resolutionOffset.x;
-    //              walkVector.z -= 1;
-    //          }
-    //          if (walkVector.z < -resolutionOffset.z) {
-    //              break;
-    //          }
-    //
-    //          if (_points.Contains(walkVector) && !_points.Checked(walkVector) && !_points.IsActive(walkVector)) {
-    //                  streaming = true;
-    //                  
-    //                  Point p = _points[Helpers.VectorKey(walkVector)];
-    //                  _head = p.Position;
-    //                  // AdjacentHope(p, ref faces);
-    //                  
-    //          } else {
-    //              if (streaming) {
-    //                  print($"new face set needed bro"); 
-    //              }
-    //          }
-    //          walkVector.x += 1 * flipFlop;
-    //      }
-    // }
 
     IEnumerator LittleBabysMarchingCubes(Vector3 dir) {
         Helpers.ClearConsole();
         
         _mf.mesh       = new Mesh();
         
-        // stores position key and indice
-        _points.Vertices       = new Dictionary<string, Vertex>();
-        OffsetVertices = new Dictionary<string, Vertex>();
-        Indices        = new ();
-        _mesh          = new Mesh();
-        TestIndices    = new List<int>();
-        // stepping top x-y
+        _points.Vertices = new Dictionary<string, Vertex>();
+        OffsetVertices   = new Dictionary<string, Vertex>();
+        SurfaceTests     = new();
+        Indices          = new ();
+        _mesh            = new Mesh();
 
         _points.ClearCheck();
         
         var   faces = new List<Square>();
-        Walk2(ref faces, false, dir);
+        Walk2(ref faces);
 
         if (faces.Count == 0) {
             //Walk2(ref faces, true, dir);
@@ -847,12 +827,15 @@ public class Trixel : MonoBehaviour {
         }
        
         Gizmos.color = new Color(1,1,1,.4f);
+        Gizmos.DrawWireCube(
+            Vector3.zero, 
+            Vector3.one * Resolution);
         foreach (var p in _points.GetList()) {
             if (p.Value.Active) {
                 // Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
             }
             else {
-                // Gizmos.DrawCube(p.Value.Position, Vector3.one);
+                 Gizmos.DrawCube(p.Value.Position, Vector3.one);
             }
         }
 
@@ -884,7 +867,11 @@ public class Trixel : MonoBehaviour {
         
         Gizmos.color = Color.magenta;
         foreach (var p in OffsetVertices) {
-            Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
+            // Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
+        }
+        Gizmos.color = Color.yellow;
+        foreach (var p in SurfaceTests) {
+            // Gizmos.DrawCube(p , new Vector3(0.3f, 0.3f, 0.3f));
         }
     }
 }
