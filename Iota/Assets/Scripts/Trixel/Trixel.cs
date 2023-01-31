@@ -13,32 +13,32 @@ public static class ExtensionMethods {
         return Array.ConvertAll(v, item => (Vector3)item);;
     }
 
-    public static Vector3 ExtractY(this Vector3 v) {
+    public static string ExtractY(this Vector3 v, int surfaceID) {
         var y = v.y;
 
         if (y == 0) {
             y = -99;
         }
         
-        return new Vector3(0, y, 0);
+        return $"{new Vector3(0, y, 0).ToString()}{surfaceID}";
     }
-    public static Vector3 ExtractX(this Vector3 v) {
+    public static string ExtractX(this Vector3 v, int surfaceID) {
         var x = v.x;
 
         if (x == 0) {
             x = -99;
         }
         
-        return new Vector3(x, 0, 0);
+        return $"{new Vector3(x, 0, 0).ToString()}{surfaceID}";
     }
-    public static Vector3 ExtractZ(this Vector3 v) {
+    public static string ExtractZ(this Vector3 v, int surfaceID) {
         var z = v.z;
 
         if (z == 0) {
             z = -99;
         }
         
-        return new Vector3(0, 0, z);
+        return $"{new Vector3(0, 0, z).ToString()}{surfaceID}";
     }
 }
     
@@ -213,7 +213,7 @@ public class Points {
     }
 
     
-    bool ActiveByCheckType(int i, Vector3 v) {
+    public bool ActiveByCheckType(int i, Vector3 v) {
         switch (i) {
             case 0: // top
                 return Top(list[v.Key()]);
@@ -231,9 +231,25 @@ public class Points {
                 return false;
         }
     }
+
+    public void FaceState(ref List<Square> ps, Vector3 v, int checkType) {
+        if (!Checked(v, checkType) && !ActiveByCheckType(checkType, v)) {
+            var p = list[(v).Key()];
+            
+            var indices = CellState(p);
+            p.SetFaces(Vertices.Values.ToArray(), 
+                indices[0], indices[1], indices[2], indices[3], 
+                indices[4], indices[5], indices[6], indices[7]);
+            ps.Add(p.Faces[checkType]);
+            list[(v).Key()].FacesChecked[checkType] = true;
+        }
+    }
     
-    public void Hop(ref List<Square> ps, Vector3 start, Vector3 step, int checkType) {
-        Vector3 next = start + step;
+    public void Hop(ref List<Square> ps, Vector3 start, Vector3 step, int checkType, bool skipStart = true) {
+        Vector3 next = start;
+        if (skipStart) {
+             next = start + step;
+        }
         if (ContainsAndActive(next) && !Checked(next, checkType) && !ActiveByCheckType(checkType, next)) {
             var p       = list[(next).Key()];
             
@@ -245,6 +261,19 @@ public class Points {
             Hop(ref ps, p.Position, step, checkType);
             
             list[(next).Key()].FacesChecked[checkType] = true;
+        }
+    }
+    
+    public void SingleHop(ref List<Square> ps, Vector3 v, int checkType) {
+        if (ContainsAndActive(v) && !Checked(v, checkType) && !ActiveByCheckType(checkType, v)) {
+            var p = list[v.Key()];
+            
+            var indices = CellState(p);
+            p.SetFaces(Vertices.Values.ToArray(), 
+                indices[0], indices[1], indices[2], indices[3], 
+                indices[4], indices[5], indices[6], indices[7]);
+            ps.Add(p.Faces[checkType]);
+            list[v.Key()].FacesChecked[checkType] = true;
         }
     }
     
@@ -449,8 +478,8 @@ public class Trixel : MonoBehaviour {
                     return Vector3.zero;
             }
         }
-       
-        public void SurfaceHop(Point p, ref Points points, bool includeStart) {
+        
+        public void SurfaceHop(Point p, ref Points points, bool skipStart = true) {
             Vector3 frontStep = TypeToStepVector("front");
             Vector3 backStep  = TypeToStepVector("back");
             Vector3 leftStep  = TypeToStepVector("left");
@@ -461,17 +490,17 @@ public class Trixel : MonoBehaviour {
             List<Square> localLeft  = new List<Square>();
             List<Square> localRight = new List<Square>();
             
-            points.Hop(ref localFront, p.Position, frontStep, SurfaceType);
-            points.Hop(ref localBack, p.Position, backStep, SurfaceType);
-            points.Hop(ref localLeft, p.Position, leftStep, SurfaceType);
-            points.Hop(ref localRight, p.Position, rigtStep, SurfaceType);
+            points.Hop(ref localFront, p.Position, frontStep, SurfaceType, skipStart);
+            points.Hop(ref localBack, p.Position, backStep, SurfaceType, skipStart);
+            points.Hop(ref localLeft, p.Position, leftStep, SurfaceType, skipStart);
+            points.Hop(ref localRight, p.Position, rigtStep, SurfaceType, skipStart);
             
             if (localFront.Count != 0) {
                 List<Square> tangentLeft  = new List<Square>();
                 List<Square> tangentRight = new List<Square>();
                 foreach (var fp in localFront) {
-                    points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType);
-                    points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType);
+                    points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType, skipStart);
                 }
                 
                 if (tangentLeft.Count != 0) {
@@ -487,8 +516,8 @@ public class Trixel : MonoBehaviour {
                 List<Square> tangentLeft  = new List<Square>();
                 List<Square> tangentRight = new List<Square>();
                 foreach (var fp in localBack) {
-                    points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType);
-                    points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType);
+                    points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType, skipStart);
                 }
                 if (tangentLeft.Count != 0) {
                     localLeft.AddRange(EvalualatePoints(tangentLeft));
@@ -578,10 +607,6 @@ public class Trixel : MonoBehaviour {
                     }
                 }
             }
-            
-            list.Sort((a, b) => 
-                a.size.CompareTo(b.size));
-            
             for (int i = 0; i < list.ToList().Count; i++) {
                 var vp = list[i];
                 for (int k = 0; k < list.ToList().Count; k++) {
@@ -624,56 +649,135 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    void HandleSurfaces(ref Dictionary<Vector3, Surface> surfaces, Point np) {
-        if (surfaces.ContainsKey(np.Position.ExtractZ())) {
-            surfaces[np.Position.ExtractZ()].SurfaceHop(np, ref _points, true);
-        } 
-        if (surfaces.ContainsKey(np.Position.ExtractX())) {
-            surfaces[np.Position.ExtractX()].SurfaceHop(np, ref _points, true);
+    // // top face
+    // Faces[0] = new Square(this, v, TTL, TTR, TBR, TBL);
+    //     
+    // // bottom face
+    // Faces[1] = new Square(this, v, BBL, BBR, BTR, BTL);
+    //     
+    // // front face
+    // Faces[2] = new Square(this, v, TTR, TTL, BTL, BTR); 
+    //     
+    // // back face
+    // Faces[3] = new Square(this, v, TBL, TBR, BBR, BBL);
+    //     
+    // // left face
+    // Faces[4] = new Square(this, v, TTL, TBL, BBL, BTL);
+    //     
+    // // right face
+    // Faces[5] = new Square(this, v, TBR, TTR, BTR, BBR);
+
+     
+    void HandleSurfaces(ref Dictionary<string, Surface> surfaces, Point np) {
+        // handleAdjacentPoints(np.Position + Vector3.down, ref surfaces);  
+        var down = np.Position + Vector3.down;
+        if (_points.ContainsAndActive(down)) {
+            var yKey = _points.GetPointByVector(down).Position.ExtractY(0);
+            if (surfaces.ContainsKey(yKey)) {
+                surfaces[yKey].SurfaceHop(_points.GetPointByVector(down), ref _points, false);
+            }
         }
-        if (surfaces.ContainsKey(np.Position.ExtractY())) {
-            surfaces[np.Position.ExtractY()].SurfaceHop(np, ref _points, true);
+        
+        var up = np.Position + Vector3.up;
+        if (_points.ContainsAndActive(up)) {
+            var yKey = _points.GetPointByVector(up).Position.ExtractY(1);
+            if (surfaces.ContainsKey(yKey)) {
+                surfaces[yKey].SurfaceHop(_points.GetPointByVector(up), ref _points, false);
+            }
+        }
+        
+        var back = np.Position + Vector3.back;
+        if (_points.ContainsAndActive(back)) {
+            var zKey = _points.GetPointByVector(back).Position.ExtractZ(2);
+            if (surfaces.ContainsKey(zKey)) {
+                surfaces[zKey].SurfaceHop(_points.GetPointByVector(back), ref _points, false);
+            }
+        }
+        
+        var forward = np.Position + Vector3.forward;
+        if (_points.ContainsAndActive(forward)) {
+            var zKey = _points.GetPointByVector(forward).Position.ExtractZ(3);
+            if (surfaces.ContainsKey(zKey)) {
+                surfaces[zKey].SurfaceHop(_points.GetPointByVector(forward), ref _points, false);
+            }
+        }
+        
+        var right = np.Position + Vector3.right;
+        if (_points.ContainsAndActive(right)) {
+            var xKey = _points.GetPointByVector(right).Position.ExtractX(4);
+            if (surfaces.ContainsKey(xKey)) {
+                surfaces[xKey].SurfaceHop(_points.GetPointByVector(right), ref _points, false);
+            }
+        }
+        
+        var left = np.Position + Vector3.left;
+        if (_points.ContainsAndActive(left)) {
+            var xKey = _points.GetPointByVector(left).Position.ExtractX(5);
+            if (surfaces.ContainsKey(xKey)) {
+                surfaces[xKey].SurfaceHop(_points.GetPointByVector(left), ref _points, false);
+            }
+        }
+
+        if (surfaces.ContainsKey(np.Position.ExtractY(0))) {
+            surfaces[np.Position.ExtractY(0)].SurfaceHop(np, ref _points);
+        }
+        if (surfaces.ContainsKey(np.Position.ExtractY(1))) {
+            surfaces[np.Position.ExtractY(1)].SurfaceHop(np, ref _points);
+        }
+        
+        if (surfaces.ContainsKey(np.Position.ExtractZ(2))) {
+            surfaces[np.Position.ExtractZ(2)].SurfaceHop(np, ref _points);
+        }
+        if (surfaces.ContainsKey(np.Position.ExtractZ(3))) {
+            surfaces[np.Position.ExtractZ(3)].SurfaceHop(np, ref _points);
+        }
+        
+        if (surfaces.ContainsKey(np.Position.ExtractX(4))) {
+            surfaces[np.Position.ExtractX(4)].SurfaceHop(np, ref _points);
+        }
+        if (surfaces.ContainsKey(np.Position.ExtractX(5))) {
+            surfaces[np.Position.ExtractX(5)].SurfaceHop(np, ref _points);
         }
     }
     
     // spiral walk
     void Walk2(ref List<Square> faces) {
         List<Point> nullPoints = new();
-        var         surfaces   = new Dictionary<Vector3, Surface>();
+        var         surfaces   = new Dictionary<string, Surface>();
         
         foreach (var p in _points.GetPointList()) {
             // top and bottom
             if (!_points.Top(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractY())) {
-                    surfaces.Add(p.Position.ExtractY(), new Surface(0));
+                if (!surfaces.ContainsKey(p.Position.ExtractY(0))) {
+                    surfaces.Add(p.Position.ExtractY(0), new Surface(0));
                 }
             }
             if (!_points.Down(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractY())) {
-                    surfaces.Add(p.Position.ExtractY(), new Surface(1));
+                if (!surfaces.ContainsKey(p.Position.ExtractY(1))) {
+                    surfaces.Add(p.Position.ExtractY(1), new Surface(1));
                 }
             }
             // // front and back
             if (!_points.Forward(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractZ())) {
-                    surfaces.Add(p.Position.ExtractZ(), new Surface(2));
+                if (!surfaces.ContainsKey(p.Position.ExtractZ(2))) {
+                    surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
                 }
             }
             if (!_points.Back(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractZ())) {
-                    surfaces.Add(p.Position.ExtractZ(), new Surface(3));
+                if (!surfaces.ContainsKey(p.Position.ExtractZ(3))) {
+                    surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
                 }
             }
             // left and right
             if (!_points.Left(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractX())) {
-                    surfaces.Add(p.Position.ExtractX(), new Surface(4));
+                if (!surfaces.ContainsKey(p.Position.ExtractX(4))) {
+                    surfaces.Add(p.Position.ExtractX(4), new Surface(4));
                 }
                 
             } 
             if (!_points.Right(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractX())) {
-                    surfaces.Add(p.Position.ExtractX(), new Surface(5));
+                if (!surfaces.ContainsKey(p.Position.ExtractX(5))) {
+                    surfaces.Add(p.Position.ExtractX(5), new Surface(5));
                 }
             }
             
@@ -701,8 +805,17 @@ public class Trixel : MonoBehaviour {
 
         if (surfaces.Count != 0) {
             foreach (var surface in surfaces.ToList()) {
-                if (!surface.Value.Buffered()) {
-                    print($"{surface.Key}");
+                print($"{surface.Key}");
+            }
+            
+            foreach (var np in _points.GetList().ToList()) {
+                // HandleSurfaces(ref surfaces, np.Value);
+            }
+            
+            foreach (var surface in surfaces.ToList()) {
+                if (surface.Value.Buffered()) {
+                    faces.AddRange(surface.Value.GetSurfaceFaces());
+                    surfaces.Remove(surface.Key);
                 }
             }
         }
@@ -730,7 +843,7 @@ public class Trixel : MonoBehaviour {
         
         faces.Sort((a, b) => a.size.CompareTo(b.size));
         var vertices = _points.Vertices.Values.ToArray();
-            
+        var normals  = new List<Vector3>();
         if (faces.Count != 0) {
             for (int i = 0; i < faces.Count; i++) {
                 var indices = faces[i].indices;
@@ -773,6 +886,8 @@ public class Trixel : MonoBehaviour {
  
         _mesh.vertices  = _points.Vertices.Values.ToArray().ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
+        _mesh.normals   = normals.ToArray();
+        
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
         
@@ -826,16 +941,17 @@ public class Trixel : MonoBehaviour {
             return;
         }
        
-        Gizmos.color = new Color(1,1,1,.4f);
+        Gizmos.color = new Color(1,1,1,1f);
         Gizmos.DrawWireCube(
             Vector3.zero, 
             Vector3.one * Resolution);
+        Gizmos.color = new Color(1,1,1,.1f);
         foreach (var p in _points.GetList()) {
             if (p.Value.Active) {
                 // Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
             }
             else {
-                 Gizmos.DrawCube(p.Value.Position, Vector3.one);
+                 // Gizmos.DrawCube(p.Value.Position, Vector3.one);
             }
         }
 
