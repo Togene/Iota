@@ -375,10 +375,10 @@ public class Trixel : MonoBehaviour {
     private Dictionary<string,Vertex> OffsetVertices = new();
     private List<Vector3>                 SurfaceTests    = new ();
     
-    private List<int>   Indices = new();
-    public  MeshCollider Collider;
-    private Vector3     _direction, _hitPoint, _head;
-    public Material mat;
+    private List<int>    Indices = new();
+    private MeshCollider Collider;
+    private Vector3      _direction, _hitPoint, _head;
+    public  Material     mat;
     // private new _indiceTracker = 
     
     private Vector3 resolutionOffset;
@@ -909,13 +909,14 @@ public class Trixel : MonoBehaviour {
         var normals = new List<Vector3>();
         foreach (var v in cleanedVertices) {
             normals.Add(v.Normal);
-            print($"{v.Normal}");
+            // print($"{v.Normal}");
         }
         
         _mesh.normals   = normals.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
-
+        // _mesh.RecalculateUVDistributionMetrics();
+        
         Collider.sharedMesh = _mesh;
         
         _mesh.name = "new face";
