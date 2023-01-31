@@ -47,7 +47,7 @@ public class Point {
     public bool[]       FacesChecked = new bool[6];
     public Vector3      Position     = new();
     public List<Vertex> vertices     = new List<Vertex>();
-    public Square[]     Faces        = new Square[6];
+    public Face[]     Faces        = new Face[6];
     
     public Point(){}
     public Point(Vector3 p, bool a) {
@@ -60,34 +60,35 @@ public class Point {
         int BTL, int BTR, int BBR, int BBL) {
         
         // top face
-        Faces[0] = new Square(this, v, TTL, TTR, TBR, TBL);
+        Faces[0] = new Face(this, v, TTL, TTR, TBR, TBL);
         
         // bottom face
-        Faces[1] = new Square(this, v, BBL, BBR, BTR, BTL);
+        Faces[1] = new Face(this, v, BBL, BBR, BTR, BTL);
         
         // front face
-        Faces[2] = new Square(this, v, TTR, TTL, BTL, BTR); 
+        Faces[2] = new Face(this, v, TTR, TTL, BTL, BTR); 
         
         // back face
-        Faces[3] = new Square(this, v, TBL, TBR, BBR, BBL);
+        Faces[3] = new Face(this, v, TBL, TBR, BBR, BBL);
         
         // left face
-        Faces[4] = new Square(this, v, TTL, TBL, BBL, BTL);
+        Faces[4] = new Face(this, v, TTL, TBL, BBL, BTL);
         
         // right face
-        Faces[5] = new Square(this, v, TBR, TTR, BTR, BBR);
+        Faces[5] = new Face(this, v, TBR, TTR, BTR, BBR);
     }
     
-    public void SetFace(Square s) {
+    public void SetFace(Face s) {
         Faces[0] = s;
     }
 }
 
 public class Vertex {
-     public  bool      Virtual = false;
-     public  Vector3   Vertice;
-     public  string    Key;
-     public  int       Type;
+     public bool    Virtual = false;
+     public Vector3 Vertice;
+     public string  Key;
+     public int     Type;
+     public Vector3 Normal = Vector3.up;
      
      public Vertex(Vector3 v, bool isVirtual)  {
          Vertice = v;
@@ -98,35 +99,52 @@ public class Vertex {
          Key     = v.Key();
          Vertice = v;
      }
+
+     public void SetNormal(Vector3 n) {
+         Normal = n;
+     }
+     
      // Custom cast from "Vector3":
      public static implicit operator Vertex( Vector3 x ) { return new Vertex( x ); }
      // Custom cast to "Vector3":
      public static implicit operator Vector3( Vertex x ) { return x.Vertice; }
 }
 
-public class Square {
-    public Point                    P;
+public class Face {
+    public  Point                    P;
     private Dictionary <string, int> i = new();
-    public  float                      size;
+    public  float                    size;
     private Vertex[]                 vertices;
+    public Vector3                  Normal;
     public  int[]                    indices;
     
-    public Square(){}
+    public Face(){}
     
-    public Square(Point p, Vertex[] v, int TL, int TR, int BR, int BL) {
+    public Face(Point p, Vertex[] v, int TL, int TR, int BR, int BL) {
         P       = p;
+        
         indices = new[] { TL, TR, BR, BL };
+        
         i.Add(Helpers.VectorKey(v[TL]), TL);
         i.Add(Helpers.VectorKey(v[TR]), TR);
         i.Add(Helpers.VectorKey(v[BR]), BR);
         i.Add(Helpers.VectorKey(v[BL]), BL);
+        
         vertices = new []{v[TL], v[TR], v[BR], v[BL]};
+        CalculateNormal();
     }
     
     public void CalculateSize() {
         size = (vertices[0].Vertice - vertices[2].Vertice).magnitude;
     }
+    public void CalculateNormal() {
+        Normal = Helpers.GetNormal(vertices[0], vertices[1], vertices[2]);
+    }
 
+    public void SetIndices(int[] _i) {
+        indices = _i;
+    }
+    
     public int[] Dump() {
         return new[] {
             indices[0], indices[1], indices[2],
@@ -232,20 +250,7 @@ public class Points {
         }
     }
 
-    public void FaceState(ref List<Square> ps, Vector3 v, int checkType) {
-        if (!Checked(v, checkType) && !ActiveByCheckType(checkType, v)) {
-            var p = list[(v).Key()];
-            
-            var indices = CellState(p);
-            p.SetFaces(Vertices.Values.ToArray(), 
-                indices[0], indices[1], indices[2], indices[3], 
-                indices[4], indices[5], indices[6], indices[7]);
-            ps.Add(p.Faces[checkType]);
-            list[(v).Key()].FacesChecked[checkType] = true;
-        }
-    }
-    
-    public void Hop(ref List<Square> ps, Vector3 start, Vector3 step, int checkType, bool skipStart = true) {
+    public void Hop(ref List<Face> ps, Vector3 start, Vector3 step, int checkType, bool skipStart = true) {
         Vector3 next = start;
         if (skipStart) {
              next = start + step;
@@ -264,7 +269,7 @@ public class Points {
         }
     }
     
-    public void SingleHop(ref List<Square> ps, Vector3 v, int checkType) {
+    public void SingleHop(ref List<Face> ps, Vector3 v, int checkType) {
         if (ContainsAndActive(v) && !Checked(v, checkType) && !ActiveByCheckType(checkType, v)) {
             var p = list[v.Key()];
             
@@ -405,18 +410,17 @@ public class Trixel : MonoBehaviour {
                 }
             }
         }
-        StartCoroutine(LittleBabysMarchingCubes(Vector3.zero));
+        StartCoroutine(LittleBabysMarchingCubes());
     }
 
     public class Surface {
-        private List<Square> Faces = new ();
-        public  Vector3      Normal;
+        private List<Face> Faces = new ();
         public  int          SurfaceType;
         
-        List<Square> frontList = new ();
-        List<Square> backList  = new ();
-        List<Square> leftList  = new ();
-        List<Square> rightList = new ();
+        List<Face> frontList = new ();
+        List<Face> backList  = new ();
+        List<Face> leftList  = new ();
+        List<Face> rightList = new ();
         
         public Surface() {
         }
@@ -483,10 +487,10 @@ public class Trixel : MonoBehaviour {
             Vector3 leftStep  = TypeToStepVector("left");
             Vector3 rigtStep  = TypeToStepVector("right");
             
-            List<Square> localFront = new List<Square>();
-            List<Square> localBack  = new List<Square>();
-            List<Square> localLeft  = new List<Square>();
-            List<Square> localRight = new List<Square>();
+            List<Face> localFront = new List<Face>();
+            List<Face> localBack  = new List<Face>();
+            List<Face> localLeft  = new List<Face>();
+            List<Face> localRight = new List<Face>();
             
             points.Hop(ref localFront, p.Position, frontStep, SurfaceType, skipStart);
             points.Hop(ref localBack, p.Position, backStep, SurfaceType, skipStart);
@@ -494,8 +498,8 @@ public class Trixel : MonoBehaviour {
             points.Hop(ref localRight, p.Position, rigtStep, SurfaceType, skipStart);
             
             if (localFront.Count != 0) {
-                List<Square> tangentLeft  = new List<Square>();
-                List<Square> tangentRight = new List<Square>();
+                List<Face> tangentLeft  = new List<Face>();
+                List<Face> tangentRight = new List<Face>();
                 foreach (var fp in localFront) {
                     points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType, skipStart);
                     points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType, skipStart);
@@ -511,8 +515,8 @@ public class Trixel : MonoBehaviour {
             }
             
             if (localBack.Count != 0) {
-                List<Square> tangentLeft  = new List<Square>();
-                List<Square> tangentRight = new List<Square>();
+                List<Face> tangentLeft  = new List<Face>();
+                List<Face> tangentRight = new List<Face>();
                 foreach (var fp in localBack) {
                     points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType, skipStart);
                     points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType, skipStart);
@@ -534,20 +538,20 @@ public class Trixel : MonoBehaviour {
             }
         }
         
-        public void AddFront(List<Square> p) {
+        public void AddFront(List<Face> p) {
             frontList.AddRange(p);
         }
-        public void AddBack(List<Square> p) {
+        public void AddBack(List<Face> p) {
             backList.AddRange(p);
         }
-        public void AddLeft(List<Square> p) {
+        public void AddLeft(List<Face> p) {
             leftList.AddRange(p);
         }
-        public void AddRight(List<Square> p) {
+        public void AddRight(List<Face> p) {
             rightList.AddRange(p);
         }
         
-        bool MergePoints(ref Square vp, ref Square vp1) {
+        bool MergePoints(ref Face vp, ref Face vp1) {
             var TL1 = vp.indices[0];
             var TR1 = vp.indices[1];
             var BR1 = vp.indices[2];
@@ -590,7 +594,7 @@ public class Trixel : MonoBehaviour {
             return connected;
         }
         
-        List<Square> EvalualatePoints(List<Square> list) {
+        List<Face> EvalualatePoints(List<Face> list) {
             if (list.Count == 1) {
                 return list;
             }
@@ -622,8 +626,8 @@ public class Trixel : MonoBehaviour {
             return frontList.Count != 0 || backList.Count != 0 || leftList.Count != 0 || rightList.Count != 0;
         }
 
-        public List<Square> GetSurfaceFaces() {
-            var faces = new List<Square>();
+        public List<Face> GetSurfaceFaces() {
+            var faces = new List<Face>();
             
             if (frontList.Count != 0) {
                 Faces.AddRange(EvalualatePoints(frontList));
@@ -638,7 +642,7 @@ public class Trixel : MonoBehaviour {
                 Faces.AddRange(EvalualatePoints(rightList));
             }
             
-            var final = new List<Square>();
+            var final = new List<Face>();
             final.AddRange(EvalualatePoints(Faces));
             foreach (var face in final) {
                 faces.Add(face);
@@ -739,7 +743,7 @@ public class Trixel : MonoBehaviour {
     }
     
     // spiral walk
-    void Walk2(ref List<Square> faces) {
+    void Walk2(ref List<Face> faces) {
         List<Point> nullPoints = new();
         var         surfaces   = new Dictionary<string, Surface>();
         
@@ -802,10 +806,6 @@ public class Trixel : MonoBehaviour {
         }
 
         if (surfaces.Count != 0) {
-            foreach (var surface in surfaces.ToList()) {
-                print($"{surface.Key}");
-            }
-            
             foreach (var np in _points.GetList().ToList()) {
                 HandleSurfaces(ref surfaces, np.Value);
             }
@@ -819,7 +819,7 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    IEnumerator LittleBabysMarchingCubes(Vector3 dir) {
+    IEnumerator LittleBabysMarchingCubes() {
         Helpers.ClearConsole();
         
         _mf.mesh       = new Mesh();
@@ -832,7 +832,7 @@ public class Trixel : MonoBehaviour {
 
         _points.ClearCheck();
         
-        var   faces = new List<Square>();
+        var   faces = new List<Face>();
         Walk2(ref faces);
 
         if (faces.Count == 0) {
@@ -841,11 +841,32 @@ public class Trixel : MonoBehaviour {
         
         faces.Sort((a, b) => a.size.CompareTo(b.size));
         var vertices = _points.Vertices.Values.ToArray();
-        var normals  = new List<Vector3>();
+        print($"# of faces {faces.Count}");
+
+        var cleanedVertices = new List<Vertex>();
         if (faces.Count != 0) {
             for (int i = 0; i < faces.Count; i++) {
+                
                 var indices = faces[i].indices;
+                
+                faces[i].CalculateNormal();
+                
+                _points.Vertices[Helpers.VectorKey(vertices[indices[0]].Vertice)].Normal = faces[i].Normal;
+                _points.Vertices[Helpers.VectorKey(vertices[indices[1]].Vertice)].Normal = faces[i].Normal;
+                _points.Vertices[Helpers.VectorKey(vertices[indices[2]].Vertice)].Normal = faces[i].Normal;
+                _points.Vertices[Helpers.VectorKey(vertices[indices[3]].Vertice)].Normal = faces[i].Normal;
 
+                var cleanedIndices = new List<int>();
+                cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[0]].Vertice)]);
+                cleanedIndices.Add(cleanedVertices.Count - 1);
+                cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[1]].Vertice)]);
+                cleanedIndices.Add(cleanedVertices.Count - 1);
+                cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[2]].Vertice)]);
+                cleanedIndices.Add(cleanedVertices.Count - 1);
+                cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[3]].Vertice)]);
+                cleanedIndices.Add(cleanedVertices.Count - 1);
+                faces[i].SetIndices(cleanedIndices.ToArray());
+                
                 if (!OffsetVertices.ContainsKey(Helpers.VectorKey(vertices[indices[0]].Vertice))) {
                     if (vertices[indices[0]].Virtual) {
                         OffsetVertices.Add(
@@ -877,15 +898,21 @@ public class Trixel : MonoBehaviour {
                             vertices[indices[3]].Vertice);
                     }
                 }
-                
                 Indices.AddRange(faces[i].Dump());
             }
         }
- 
-        _mesh.vertices  = _points.Vertices.Values.ToArray().ToVector3Array(); 
-        _mesh.triangles = Indices.ToArray();
-        _mesh.normals   = normals.ToArray();
         
+        print($"vertices: {cleanedVertices.Count}");
+        _mesh.vertices  = cleanedVertices.ToArray().ToVector3Array(); 
+        _mesh.triangles = Indices.ToArray();
+        
+        var normals = new List<Vector3>();
+        foreach (var v in cleanedVertices) {
+            normals.Add(v.Normal);
+            print($"{v.Normal}");
+        }
+        
+        _mesh.normals   = normals.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
 
@@ -921,11 +948,11 @@ public class Trixel : MonoBehaviour {
             if (_direction != null) {
                 if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
                     _points.SetPointsActive(_hitPoint - _direction/2, false);
-                    StartCoroutine(LittleBabysMarchingCubes(_direction));
+                    StartCoroutine(LittleBabysMarchingCubes());
                 }
-                if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint - _direction/2)) {
-                    _points.SetPointsActive(_hitPoint - _direction/2, true);
-                    StartCoroutine(LittleBabysMarchingCubes(_direction));
+                if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint + _direction/2)) {
+                    _points.SetPointsActive(_hitPoint + _direction/2, true);
+                    StartCoroutine(LittleBabysMarchingCubes());
                 }
             };
         }
@@ -963,23 +990,24 @@ public class Trixel : MonoBehaviour {
             return;
         }
         
-        // foreach (var p in _points.Vertices) {
-        //     if (!p.Value.Virtual) {
-        //         if (p.Value.Type == 0) {
-        //             Gizmos.color = Color.blue;
-        //         } else if (p.Value.Type == 1) {
-        //             Gizmos.color = Color.red;
-        //         } else if (p.Value.Type == 2) {
-        //             Gizmos.color = Color.yellow;
-        //         } else if (p.Value.Type == 3) {
-        //             Gizmos.color = Color.green;
-        //         } 
-        //         Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
-        //     }
-        //     else {
-        //         Gizmos.color = Color.magenta;
-        //     }
-        // }
+        foreach (var p in _points.Vertices) {
+            if (!p.Value.Virtual) {
+                if (p.Value.Type == 0) {
+                    Gizmos.color = Color.blue;
+                } else if (p.Value.Type == 1) {
+                    Gizmos.color = Color.red;
+                } else if (p.Value.Type == 2) {
+                    Gizmos.color = Color.yellow;
+                } else if (p.Value.Type == 3) {
+                    Gizmos.color = Color.green;
+                } 
+                // Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
+                Gizmos.DrawRay(p.Value.Vertice, p.Value.Normal);
+            }
+            else {
+                Gizmos.color = Color.magenta;
+            }
+        }
         
         Gizmos.color = Color.magenta;
         foreach (var p in OffsetVertices) {
