@@ -915,6 +915,9 @@ public class Trixel : MonoBehaviour {
         _mesh.normals   = normals.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
+        
+        // http: //ilkinulas.github.io/development/unity/2016/05/06/uv-mapping.html
+
         // _mesh.RecalculateUVDistributionMetrics();
         
         Collider.sharedMesh = _mesh;
@@ -1010,9 +1013,9 @@ public class Trixel : MonoBehaviour {
             }
         }
         
-        Gizmos.color = Color.magenta;
+        Gizmos.color = Color.cyan;
         foreach (var p in OffsetVertices) {
-            // Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
+            Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
         }
         Gizmos.color = Color.yellow;
         foreach (var p in SurfaceTests) {

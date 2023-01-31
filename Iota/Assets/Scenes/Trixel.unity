@@ -315,13 +315,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 2129877301}
-  targetdistance: 10
+  targetdistance: 30
   xSpeed: 120
   ySpeed: 120
   yMinLimit: -80
   yMaxLimit: 80
   distanceMin: 0.5
-  distanceMax: 15
+  distanceMax: 50
   ScrollSensativity: 24
 --- !u!1 &2129877299
 GameObject:
@@ -386,7 +386,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7af2abb0673974295bd16df72f9b1149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Resolution: 5
+  Resolution: 13
   RenderSpeed: 0
-  Collider: {fileID: 0}
   mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}
