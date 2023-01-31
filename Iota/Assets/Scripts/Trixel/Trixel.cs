@@ -371,7 +371,7 @@ public class Trixel : MonoBehaviour {
     private List<Vector3>                 SurfaceTests    = new ();
     
     private List<int>   Indices = new();
-    public  BoxCollider Collider;
+    public  MeshCollider Collider;
     private Vector3     _direction, _hitPoint, _head;
     public Material mat;
     // private new _indiceTracker = 
@@ -383,9 +383,7 @@ public class Trixel : MonoBehaviour {
     private Mesh         _mesh;
     
     void Awake() {
-        Collider      = this.AddComponent<BoxCollider>();
-        Collider.size = new Vector3(Resolution, Resolution, Resolution);
-        
+        Collider      = this.AddComponent<MeshCollider>();
         _mf          = this.AddComponent<MeshFilter>();
         _mr          = this.AddComponent<MeshRenderer>();
         _mr.material = mat;
@@ -809,7 +807,7 @@ public class Trixel : MonoBehaviour {
             }
             
             foreach (var np in _points.GetList().ToList()) {
-                // HandleSurfaces(ref surfaces, np.Value);
+                HandleSurfaces(ref surfaces, np.Value);
             }
             
             foreach (var surface in surfaces.ToList()) {
@@ -890,6 +888,8 @@ public class Trixel : MonoBehaviour {
         
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
+
+        Collider.sharedMesh = _mesh;
         
         _mesh.name = "new face";
         _mf.mesh   = _mesh;

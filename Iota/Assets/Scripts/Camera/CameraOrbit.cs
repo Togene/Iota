@@ -76,11 +76,11 @@ public class CameraOrbit : MonoBehaviour
             targetdistance = Mathf.Clamp(targetdistance - (Input.GetAxis("Mouse ScrollWheel") *  ScrollSensativity ), distanceMin, distanceMax);
             distance = Mathf.Lerp(distance, targetdistance, 0.1f); //Smooth
 
-            RaycastHit hit;
-            if (Physics.Linecast(target.position, transform.position, out hit))
-            {
-                targetdistance -= hit.distance;
-            }
+            // RaycastHit hit;
+            // if (Physics.Linecast(target.position, transform.position, out hit))
+            // {
+            //     // targetdistance -= hit.distance;
+            // }
             Vector3 negDistance = new Vector3(0.0f, 0.0f, -distance);
             Vector3 position = rotation * negDistance + target.position;
 
