@@ -819,9 +819,24 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    Vector2 GenerateUV(Vertex v) {
-        var lastVert = (v.Vertice) / Resolution;
-        return  new Vector2(lastVert.x, lastVert.z) + new Vector2(0.5f, 0.5f);
+    Vector2 GenerateUV(Vertex v, Vector3 dir) {
+        var lastVert = v.Vertice / Resolution;
+        
+        
+        if (dir == Vector3.up || dir == Vector3.down) {
+            return new Vector2(lastVert.x, lastVert.z/3 + 0) + new Vector2(0.5f, 0.5f/3);
+        } 
+        if (dir == Vector3.left || dir == Vector3.right) {
+            return new Vector2(lastVert.z, (lastVert.y/3) + 1/3f) + new Vector2(0.5f, 0.5f/3);
+        } 
+        
+        if (dir == Vector3.forward || dir == Vector3.back) {
+            return  new Vector2(lastVert.x, (lastVert.y / 3) + 2/3f) + new Vector2(0.5f, 0.5f/3);
+        }
+        else {
+            return Vector2.one;
+        }
+        return Vector2.one;
     }
     
     IEnumerator LittleBabysMarchingCubes() {
@@ -867,22 +882,22 @@ public class Trixel : MonoBehaviour {
                 cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[0]].Vertice)]);
                 cleanedIndices.Add(cleanedVertices.Count - 1);
 
-                cleanedUVs.Add(GenerateUV(cleanedVertices.Last()));
+                cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), faces[i].Normal));
                 
                 cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[1]].Vertice)]);
                 cleanedIndices.Add(cleanedVertices.Count - 1);
                 
-                cleanedUVs.Add(GenerateUV(cleanedVertices.Last()));
+                cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), faces[i].Normal));
                 
                 cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[2]].Vertice)]);
                 cleanedIndices.Add(cleanedVertices.Count - 1);
                
-                cleanedUVs.Add(GenerateUV(cleanedVertices.Last()));
+                cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), faces[i].Normal));
                 
                 cleanedVertices.Add(_points.Vertices[Helpers.VectorKey(vertices[indices[3]].Vertice)]);
                 cleanedIndices.Add(cleanedVertices.Count - 1);
                 
-                cleanedUVs.Add(GenerateUV(cleanedVertices.Last()));
+                cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), faces[i].Normal));
                 
                 faces[i].SetIndices(cleanedIndices.ToArray());
                 
@@ -987,58 +1002,58 @@ public class Trixel : MonoBehaviour {
     }
 
     private void OnDrawGizmos() {
-    //     if (_points == null || _points.GetList() == null || _points.GetList().Count == 0) {
-    //         return;
-    //     }
-    //    
-    //     Gizmos.color = new Color(1,1,1,1f);
-    //     Gizmos.DrawWireCube(
-    //         Vector3.zero, 
-    //         Vector3.one * Resolution);
-    //     Gizmos.color = new Color(1,1,1,.1f);
-    //     foreach (var p in _points.GetList()) {
-    //         if (p.Value.Active) {
-    //             // Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
-    //         }
-    //         else {
-    //              // Gizmos.DrawCube(p.Value.Position, Vector3.one);
-    //         }
-    //     }
-    //
-    //     Gizmos.color = Color.green;
-    //     Gizmos.DrawRay(_hitPoint, _direction);
-    //     Gizmos.DrawSphere(_head, 0.15f);
-    //     
-    //     if (_points == null || _points.Vertices == null || _points.Vertices.Count == 0) {
-    //         return;
-    //     }
-    //     
-    //     foreach (var p in _points.Vertices) {
-    //         if (!p.Value.Virtual) {
-    //             if (p.Value.Type == 0) {
-    //                 Gizmos.color = Color.blue;
-    //             } else if (p.Value.Type == 1) {
-    //                 Gizmos.color = Color.red;
-    //             } else if (p.Value.Type == 2) {
-    //                 Gizmos.color = Color.yellow;
-    //             } else if (p.Value.Type == 3) {
-    //                 Gizmos.color = Color.green;
-    //             } 
-    //             // Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
-    //             Gizmos.DrawRay(p.Value.Vertice, p.Value.Normal);
-    //         }
-    //         else {
-    //             Gizmos.color = Color.magenta;
-    //         }
-    //     }
-    //     
-    //     Gizmos.color = Color.cyan;
-    //     foreach (var p in OffsetVertices) {
-    //         Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
-    //     }
-    //     Gizmos.color = Color.yellow;
-    //     foreach (var p in SurfaceTests) {
-    //         // Gizmos.DrawCube(p , new Vector3(0.3f, 0.3f, 0.3f));
-    //     }
+    if (_points == null || _points.GetList() == null || _points.GetList().Count == 0) {
+        return;
+    }
+    
+    Gizmos.color = new Color(1,1,1,1f);
+    Gizmos.DrawWireCube(
+        Vector3.zero, 
+        Vector3.one * Resolution);
+    Gizmos.color = new Color(1,1,1,.1f);
+    foreach (var p in _points.GetList()) {
+        if (p.Value.Active) {
+            // Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
+        }
+        else {
+             // Gizmos.DrawCube(p.Value.Position, Vector3.one);
+        }
+    }
+    
+    Gizmos.color = Color.green;
+    Gizmos.DrawRay(_hitPoint, _direction);
+    Gizmos.DrawSphere(_head, 0.15f);
+    
+    if (_points == null || _points.Vertices == null || _points.Vertices.Count == 0) {
+        return;
+    }
+    
+    foreach (var p in _points.Vertices) {
+        if (!p.Value.Virtual) {
+            if (p.Value.Type == 0) {
+                Gizmos.color = Color.blue;
+            } else if (p.Value.Type == 1) {
+                Gizmos.color = Color.red;
+            } else if (p.Value.Type == 2) {
+                Gizmos.color = Color.yellow;
+            } else if (p.Value.Type == 3) {
+                Gizmos.color = Color.green;
+            } 
+            // Gizmos.DrawCube(p.Value, new Vector3(0.1f, 0.1f, 0.1f));
+            Gizmos.DrawRay(p.Value.Vertice, p.Value.Normal);
+        }
+        else {
+            Gizmos.color = Color.magenta;
+        }
+    }
+    
+    Gizmos.color = Color.cyan;
+    foreach (var p in OffsetVertices) {
+        Gizmos.DrawCube(p.Value + new Vector3(0, 0, 0), new Vector3(0.1f, 0.1f, 0.1f));
+    }
+    Gizmos.color = Color.yellow;
+    foreach (var p in SurfaceTests) {
+        // Gizmos.DrawCube(p , new Vector3(0.3f, 0.3f, 0.3f));
+    }
     }
 }
