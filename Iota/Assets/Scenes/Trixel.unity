@@ -412,7 +412,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 2129877301}
-  targetdistance: 30
+  targetdistance: 24
   xSpeed: 120
   ySpeed: 120
   yMinLimit: -80
@@ -429,7 +429,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2129877301}
-  - component: {fileID: 2129877300}
   - component: {fileID: 2129877302}
   m_Layer: 0
   m_Name: Trixel
@@ -438,24 +437,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2129877300
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2129877299}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 37a8b9c81dcf74c3da2a454b1e1900e2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _resolution: 3
-  _vertexSize: 0.1
-  _mr: {fileID: 0}
-  _mf: {fileID: 0}
-  _mc: {fileID: 0}
-  currentCubiods: []
 --- !u!4 &2129877301
 Transform:
   m_ObjectHideFlags: 0
@@ -484,6 +465,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7af2abb0673974295bd16df72f9b1149, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Resolution: 9
+  Resolution: 8
   RenderSpeed: 0
   mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}
