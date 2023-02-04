@@ -53,33 +53,7 @@ public class Point {
 
     public void SetFaces(int faceType, Vertex[] v) {
         // TTL 0, TTR 1, TBR 2, TBL 3, BTL 4, BTR 5, BBR 6, BBL 7
-
-        switch (faceType) {
-            case 0:
-                // top face
-                Faces[0] = new Face(Position.Key(), new []{v[0], v[1], v[2], v[3]});
-                break;
-            case 1:
-                // bottom face
-                Faces[1] = new Face(Position.Key(), new []{v[4], v[5], v[6], v[7]});
-                break;
-            case 2:
-                // front face
-                Faces[2] = new Face(Position.Key(), new []{v[1], v[0], v[4], v[5]});
-                break;
-            case 3:
-                // back face
-                Faces[3] = new Face(Position.Key(), new []{v[3], v[2], v[6], v[7]});
-                break;
-            case 4:
-                // left face
-                Faces[4] = new Face(Position.Key(), new []{v[0], v[3], v[7], v[4]});
-                break;
-            case 5:
-                // right face
-                Faces[5] = new Face(Position.Key(), new []{v[2], v[1], v[5], v[6]});
-                break;
-        }
+        Faces[faceType] = new Face(Position.Key(), new []{v[0], v[1], v[2], v[3]});
     }
 }
 
@@ -108,10 +82,12 @@ public class Vertex {
 }
 
 public class Face {
+    
     public  string                 PKey;
     private Vertex[]               Vertices;
     public Vector3                 Normal;
     public  int[]                  indices;
+    
     public Face(string p, Vertex[] v) {
         PKey    = p;
         indices = new[] { v[0].Index, v[1].Index, v[2].Index, v[3].Index};
@@ -244,7 +220,7 @@ public class Points {
         }
     }
     
-       bool MergePoints(ref Face vp,Face vp1) {
+       bool MergePoints(ref Face vp, ref Face vp1) {
             var TL1 = vp.indices[0];
             var TR1 = vp.indices[1];
             var BR1 = vp.indices[2];
@@ -287,7 +263,7 @@ public class Points {
     void EvalualatePoints(Face vp, ref List<Face> list) {
         for (int k = 0; k < list.Count; k++) {
             var vp1 = list[k];
-            if (MergePoints(ref vp1, vp)) {
+            if (MergePoints(ref vp1, ref vp)) {
                 return;
             }
         }
@@ -304,11 +280,45 @@ public class Points {
         if (ContainsAndActive(next) && !Checked(next, checkType) && !ActiveByCheckType(checkType, next)) {
             var p       = PointsList[(next).Key()];
             var indices = CellState(p);
-            p.SetFaces(checkType,
-                new [] {
-                    Vertices[indices[0]], Vertices[indices[1]], Vertices[indices[2]], Vertices[indices[3]],
-                    Vertices[indices[4]], Vertices[indices[5]], Vertices[indices[6]], Vertices[indices[7]]
-            });
+            switch (checkType) {
+                case 0: // top face
+                    p.SetFaces(checkType,
+                        new [] {
+                            Vertices[indices[0]], Vertices[indices[1]], Vertices[indices[2]], Vertices[indices[3]],
+                        });
+                    break;
+                case 1: // bottom face
+                    p.SetFaces(checkType,
+                        new [] {
+                            Vertices[indices[7]], Vertices[indices[6]], Vertices[indices[5]], Vertices[indices[4]],
+                        });
+                    
+                    break;
+                case 2: // front face
+                    p.SetFaces(checkType,
+                        new [] {
+                            Vertices[indices[1]], Vertices[indices[0]], Vertices[indices[4]], Vertices[indices[5]],
+                        });
+                    break;
+                case 3: // back face
+                    p.SetFaces(checkType,
+                        new [] {
+                            Vertices[indices[3]], Vertices[indices[2]], Vertices[indices[6]], Vertices[indices[7]],
+                        });
+                    break;
+                case 4: // left face
+                    p.SetFaces(checkType,
+                        new [] {
+                            Vertices[indices[0]], Vertices[indices[3]], Vertices[indices[7]], Vertices[indices[4]],
+                        });
+                    break;
+                case 5: // right face
+                    p.SetFaces(checkType,
+                        new [] {
+                            Vertices[indices[2]], Vertices[indices[1]], Vertices[indices[5]], Vertices[indices[6]],
+                        });
+                    break;
+            }
             EvalualatePoints(p.Faces[checkType], ref ps);
             Hop(ref ps, p.Position, step, checkType);
             PointsList[(next).Key()].FacesChecked[checkType] = true;
@@ -384,6 +394,11 @@ public class Trixel : MonoBehaviour {
     public  Material     mat;
     private Vector3      resolutionOffset;
     
+    
+    List<string>                surfacePoints = new();
+    Dictionary<string, Surface> Surfaces      = new();
+    
+    // Mesh Junk
     private MeshFilter   _mf;
     private MeshRenderer _mr;
     private Mesh         _mesh;
@@ -414,6 +429,93 @@ public class Trixel : MonoBehaviour {
         StartCoroutine(LittleBabysMarchingCubes());
     }
 
+    public bool SurfaceContains(string pKey) {
+        var p = _points[pKey];
+        return Surfaces.ContainsKey(p.Position.ExtractY(0)) ||
+               Surfaces.ContainsKey(p.Position.ExtractY(1)) ||
+               Surfaces.ContainsKey(p.Position.ExtractZ(2)) ||
+               Surfaces.ContainsKey(p.Position.ExtractZ(3)) ||
+               Surfaces.ContainsKey(p.Position.ExtractX(4)) ||
+               Surfaces.ContainsKey(p.Position.ExtractX(5));
+    }
+    
+    public string GetSurfaceKey(string pKey) {
+        var p = _points[pKey];
+        
+        if (Surfaces.ContainsKey(p.Position.ExtractY(0)))
+        {
+            return p.Position.ExtractY(0);
+        }
+        if (Surfaces.ContainsKey(p.Position.ExtractY(1)))
+        {
+            return p.Position.ExtractY(1);
+        }
+        
+        if (Surfaces.ContainsKey(p.Position.ExtractZ(2))) {
+            return p.Position.ExtractZ(2);
+        }
+        if (Surfaces.ContainsKey(p.Position.ExtractZ(3)))
+        {
+            return p.Position.ExtractZ(3);
+        }
+        
+        if (Surfaces.ContainsKey(p.Position.ExtractX(4))) {
+            return p.Position.ExtractX(4);
+        }
+        if (Surfaces.ContainsKey(p.Position.ExtractX(5)))
+        {
+            return p.Position.ExtractX(5);
+        }
+        return "";
+    }
+
+    public void NewSurface(string pKey, bool addPoints) {
+        var p = _points[pKey];
+        
+        if (!_points.Top(p)) {
+            if (!Surfaces.ContainsKey(p.Position.ExtractY(0))) {
+                Surfaces.Add(p.Position.ExtractY(0), new Surface(0));
+            }
+            if (addPoints) surfacePoints.Add(pKey);;
+        }
+        if (!_points.Down(p)) {
+            // surfacePoints.Add(pKey);
+            if (!Surfaces.ContainsKey(p.Position.ExtractY(1))) {
+                Surfaces.Add(p.Position.ExtractY(1), new Surface(1));
+            }
+            if (addPoints) surfacePoints.Add(pKey);;
+        }
+        // // front and back
+        if (!_points.Forward(p)) {
+            // surfacePoints.Add(pKey);
+            if (!Surfaces.ContainsKey(p.Position.ExtractZ(2))) {
+                Surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
+            }
+            if (addPoints) surfacePoints.Add(pKey);;
+        }
+        if (!_points.Back(p)) {
+            // surfacePoints.Add(pKey);
+            if (!Surfaces.ContainsKey(p.Position.ExtractZ(3))) {
+                Surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
+            }
+            if (addPoints) surfacePoints.Add(pKey);;
+        }
+        // left and right
+        if (!_points.Left(p)) {
+            // surfacePoints.Add(pKey);
+            if (!Surfaces.ContainsKey(p.Position.ExtractX(4))) {
+                Surfaces.Add(p.Position.ExtractX(4), new Surface(4));
+            }
+            if (addPoints) surfacePoints.Add(pKey);;
+        } 
+        if (!_points.Right(p)) {
+            if (!Surfaces.ContainsKey(p.Position.ExtractX(5))) {
+                Surfaces.Add(p.Position.ExtractX(5), new Surface(5));
+            }
+            if (addPoints) surfacePoints.Add(pKey);;
+        }
+    }
+    
     public class Surface {
         private List<Face> Faces = new ();
         private int        SurfaceType;
@@ -705,84 +807,49 @@ public class Trixel : MonoBehaviour {
     
     // spiral walk
     void Walk2(ref List<Face> faces) {
-        List<string> surfacePoints = new();
-        var         surfaces      = new Dictionary<string, Surface>();
+        surfacePoints = new List<string>();
+        Surfaces      = new Dictionary<string, Surface>();
         
         foreach (var pair in _points.GetList()) {
             var p = pair.Value;
             // top and bottom
             if (p.Active) {
-                if (!_points.Top(p)) {
-                    surfacePoints.Add(pair.Key);
-                    if (!surfaces.ContainsKey(p.Position.ExtractY(0))) {
-                        surfaces.Add(p.Position.ExtractY(0), new Surface(0));
-                    }
-                }
-                if (!_points.Down(p)) {
-                    surfacePoints.Add(pair.Key);
-                    if (!surfaces.ContainsKey(p.Position.ExtractY(1))) {
-                        surfaces.Add(p.Position.ExtractY(1), new Surface(1));
-                    }
-                }
-                // // front and back
-                if (!_points.Forward(p)) {
-                    surfacePoints.Add(pair.Key);
-                    if (!surfaces.ContainsKey(p.Position.ExtractZ(2))) {
-                        surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
-                    }
-                }
-                if (!_points.Back(p)) {
-                    surfacePoints.Add(pair.Key);
-                    if (!surfaces.ContainsKey(p.Position.ExtractZ(3))) {
-                        surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
-                    }
-                }
-                // left and right
-                if (!_points.Left(p)) {
-                    surfacePoints.Add(pair.Key);
-                    if (!surfaces.ContainsKey(p.Position.ExtractX(4))) {
-                        surfaces.Add(p.Position.ExtractX(4), new Surface(4));
-                    }
-                } 
-                if (!_points.Right(p)) {
-                    surfacePoints.Add(pair.Key);
-                    if (!surfaces.ContainsKey(p.Position.ExtractX(5))) {
-                        surfaces.Add(p.Position.ExtractX(5), new Surface(5));
-                    }
-     
-                }
+                NewSurface(pair.Key, true);
             }
         }
         
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
-        
         NullPoints.Sort((a, b) => 
             Vector3.Distance(_points[a].Position + resolutionOffset, c).
                 CompareTo(Vector3.Distance(_points[b].Position + resolutionOffset, c)));
         
         foreach (var np in NullPoints) {
-            HandleSurfaces(ref surfaces, np);
+            // NewSurface(np, false);
+            HandleSurfaces(ref Surfaces, np);
+        }
+        
+        foreach (var sp in surfacePoints) {
+            // NewSurface(sp, false);
+            HandleSurfaces(ref Surfaces, sp);
         }
 
-        foreach (var surface in surfaces.ToList()) {
+
+        foreach (var surface in Surfaces.ToList()) {
             if (surface.Value.Buffered()) {
                 faces.AddRange(surface.Value.GetSurfaceFaces());
-                 surfaces.Remove(surface.Key);
+                Surfaces.Remove(surface.Key);
             }
         }
-
-        if (surfaces.Count != 0) {
-            foreach (var np in surfacePoints) {
-                HandleSurfaces(ref surfaces, np);
-            }
-            
-            foreach (var surface in surfaces.ToList()) {
-                if (surface.Value.Buffered()) {
-                    faces.AddRange(surface.Value.GetSurfaceFaces());
-                    surfaces.Remove(surface.Key);
-                }
-            }
-        }
+        //
+        // if (Surfaces.Count != 0) {
+        //   
+        //     foreach (var surface in Surfaces.ToList()) {
+        //         if (surface.Value.Buffered()) {
+        //             faces.AddRange(surface.Value.GetSurfaceFaces());
+        //             // Surfaces.Remove(surface.Key);
+        //         }
+        //     }
+        // }
     }
 
     Vector2 GenerateUV(Vertex v, Vector3 dir) {
@@ -931,7 +998,6 @@ public class Trixel : MonoBehaviour {
             if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
                 _points.SetPointsActive(_hitPoint - _direction/2, false);
                 NullPoints.Add((_hitPoint - _direction/2).Key());
-                
                 StartCoroutine(LittleBabysMarchingCubes());
             }
             
