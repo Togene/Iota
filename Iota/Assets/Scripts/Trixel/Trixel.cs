@@ -12,7 +12,9 @@ public static class ExtensionMethods {
     public static Vector3[] ToVector3Array(this Vertex[] v) {
         return Array.ConvertAll(v, item => (Vector3)item);;
     }
-
+    public static Vector3[] ToVector3Array(this List<Vertex> v) {
+        return v.Select(x=>x.Vertice).ToArray();
+    }
     public static string ExtractY(this Vector3 v, int surfaceID) {
         var y = v.y;
 
@@ -46,7 +48,7 @@ public class Point {
     public bool         Active       = false;
     public bool[]       FacesChecked = new bool[6];
     public Vector3      Position     = new();
-    public List<Vertex> vertices     = new List<Vertex>();
+    // public List<Vertex> vertices     = new List<Vertex>();
     public Face[]     Faces        = new Face[6];
     
     // public Point(){}
@@ -55,24 +57,20 @@ public class Point {
         Position = p;
     }
 
-    public void SetFaces(Vertex[] v, 
-        int TTL, int TTR, int TBR, int TBL, 
-        int BTL, int BTR, int BBR, int BBL) {
-        
-        
+    public void SetFaces(Vertex[] v) {
         // TTL 0, TTR 1, TBR 2, TBL 3, BTL 4, BTR 5, BBR 6, BBL 7
         // top face
-        Faces[0] = new Face(this, new []{v[0], v[1], v[2], v[3]});
+        Faces[0] = new Face(Position.Key(), new []{v[0], v[1], v[2], v[3]});
         // bottom face
-        Faces[1] = new Face(this, new []{v[4], v[5], v[6], v[7]});
+        Faces[1] = new Face(Position.Key(), new []{v[4], v[5], v[6], v[7]});
         // front face
-        Faces[2] = new Face(this, new []{v[1], v[0], v[4], v[5]});
+        Faces[2] = new Face(Position.Key(), new []{v[1], v[0], v[4], v[5]});
         // back face
-        Faces[3] = new Face(this, new []{v[3], v[2], v[6], v[7]});
+        Faces[3] = new Face(Position.Key(), new []{v[3], v[2], v[6], v[7]});
         // left face
-        Faces[4] = new Face(this, new []{v[0], v[3], v[7], v[4]});
+        Faces[4] = new Face(Position.Key(), new []{v[0], v[3], v[7], v[4]});
         // right face
-        Faces[5] = new Face(this, new []{v[2], v[1], v[5], v[6]});
+        Faces[5] = new Face(Position.Key(), new []{v[2], v[1], v[5], v[6]});
     }
     //
     // public void SetFace(Face s) {
@@ -83,7 +81,7 @@ public class Point {
 
 public class Vertex {
      public bool    Virtual = false;
-     public Vector3 Vertice;
+     public Vector3 Vertice { get; set; }
      public string  Key;
      public int     Index;
      public int     Type;
@@ -105,23 +103,23 @@ public class Vertex {
 }
 
 public class Face {
-    public  Point                    P;
-    private Dictionary <string, int> i = new();
-    // public  float                    Size;
+    public  string                 PKey;
     private Vertex[]                 vertices;
     public Vector3                   Normal;
     public  int[]                    indices;
     
+    // private Dictionary <string, int> i = new();
+    // public  float                    Size;
     public Face(){}
     
-    public Face(Point p, Vertex[] v) {
-        P       = p;
+    public Face(string p, Vertex[] v) {
+        PKey    = p;
         indices = new[] { v[0].Index, v[1].Index, v[2].Index, v[3].Index};
         
-        i.Add(Helpers.VectorKey(v[0]), v[0].Index);
-        i.Add(Helpers.VectorKey(v[1]), v[1].Index);
-        i.Add(Helpers.VectorKey(v[2]), v[2].Index);
-        i.Add(Helpers.VectorKey(v[3]), v[3].Index);
+        // i.Add(Helpers.VectorKey(v[0]), v[0].Index);
+        // i.Add(Helpers.VectorKey(v[1]), v[1].Index);
+        // i.Add(Helpers.VectorKey(v[2]), v[2].Index);
+        // i.Add(Helpers.VectorKey(v[3]), v[3].Index);
         vertices = v; 
         // new []{v[TL], v[TR], v[BR], v[BL]};
         CalculateNormal();
@@ -270,9 +268,7 @@ public class Points {
                 new [] {
                     Vertices[indices[0]], Vertices[indices[1]], Vertices[indices[2]], Vertices[indices[3]],
                     Vertices[indices[4]], Vertices[indices[5]], Vertices[indices[6]], Vertices[indices[7]]
-                }, 
-                indices[0], indices[1], indices[2], indices[3], 
-                indices[4], indices[5], indices[6], indices[7]);
+                });
             
             ps.Add(p.Faces[checkType]);
             
@@ -449,7 +445,7 @@ public class Trixel : MonoBehaviour {
             }
         }
         
-        public void SurfaceHop(Point p, ref Points points, bool skipStart = true) {
+        public void SurfaceHop(string pKey, ref Points points, bool skipStart = true) {
             Vector3 frontStep = TypeToStepVector("front");
             Vector3 backStep  = TypeToStepVector("back");
             Vector3 leftStep  = TypeToStepVector("left");
@@ -460,17 +456,17 @@ public class Trixel : MonoBehaviour {
             List<Face> localLeft  = new List<Face>();
             List<Face> localRight = new List<Face>();
             
-            points.Hop(ref localFront, p.Position, frontStep, SurfaceType, skipStart);
-            points.Hop(ref localBack, p.Position, backStep, SurfaceType, skipStart);
-            points.Hop(ref localLeft, p.Position, leftStep, SurfaceType, skipStart);
-            points.Hop(ref localRight, p.Position, rigtStep, SurfaceType, skipStart);
+            points.Hop(ref localFront, points[pKey].Position, frontStep, SurfaceType, skipStart);
+            points.Hop(ref localBack, points[pKey].Position, backStep, SurfaceType, skipStart);
+            points.Hop(ref localLeft, points[pKey].Position, leftStep, SurfaceType, skipStart);
+            points.Hop(ref localRight, points[pKey].Position, rigtStep, SurfaceType, skipStart);
             
             if (localFront.Count != 0) {
                 List<Face> tangentLeft  = new List<Face>();
                 List<Face> tangentRight = new List<Face>();
                 foreach (var fp in localFront) {
-                    points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType, skipStart);
-                    points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentLeft, points[fp.PKey].Position, leftStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentRight, points[fp.PKey].Position, rigtStep, SurfaceType, skipStart);
                 }
                 
                 if (tangentLeft.Count != 0) {
@@ -486,8 +482,8 @@ public class Trixel : MonoBehaviour {
                 List<Face> tangentLeft  = new List<Face>();
                 List<Face> tangentRight = new List<Face>();
                 foreach (var fp in localBack) {
-                    points.Hop(ref tangentLeft, fp.P.Position, leftStep, SurfaceType, skipStart);
-                    points.Hop(ref tangentRight, fp.P.Position, rigtStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentLeft, points[fp.PKey].Position, leftStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentRight, points[fp.PKey].Position, rigtStep, SurfaceType, skipStart);
                 }
                 if (tangentLeft.Count != 0) {
                     localLeft.AddRange(EvalualatePoints(tangentLeft));
@@ -610,78 +606,66 @@ public class Trixel : MonoBehaviour {
         }
     }
     
-    void HandleSurfaces(ref Dictionary<string, Surface> surfaces, Point np, bool skipStart = true) {
-
-        // if (!skipStart) {
-            var down = np.Position + Vector3.down;
-            if (_points.ContainsAndActive(down)) {
-                var yKey = _points.GetPointByVector(down).Position.ExtractY(0);
-                if (surfaces.ContainsKey(yKey)) {
-                    surfaces[yKey].SurfaceHop(_points.GetPointByVector(down), ref _points, false);
-                }
+    void HandleSurfaces(ref Dictionary<string, Surface> surfaces, string pKey, bool skipStart = true) {
+        var np = _points[pKey];
+        
+        if (_points.ContainsAndActive(np.Position + Vector3.down)) {
+            var yKey = _points.GetPointByVector(np.Position + Vector3.down).Position.ExtractY(0);
+            if (surfaces.ContainsKey(yKey)) {
+                surfaces[yKey].SurfaceHop((np.Position + Vector3.down).Key(), ref _points, false);
             }
-            
-            var up = np.Position + Vector3.up;
-            if (_points.ContainsAndActive(up)) {
-                var yKey = _points.GetPointByVector(up).Position.ExtractY(1);
-                if (surfaces.ContainsKey(yKey)) {
-                    surfaces[yKey].SurfaceHop(_points.GetPointByVector(up), ref _points, false);
-                }
+        }
+        if (_points.ContainsAndActive(np.Position + Vector3.up)) {
+            var yKey = _points.GetPointByVector(np.Position + Vector3.up).Position.ExtractY(1);
+            if (surfaces.ContainsKey(yKey)) {
+                surfaces[yKey].SurfaceHop((np.Position + Vector3.up).Key(), ref _points, false);
             }
-            
-            var back = np.Position + Vector3.back;
-            if (_points.ContainsAndActive(back)) {
-                var zKey = _points.GetPointByVector(back).Position.ExtractZ(2);
-                if (surfaces.ContainsKey(zKey)) {
-                    surfaces[zKey].SurfaceHop(_points.GetPointByVector(back), ref _points, false);
-                }
+        }
+        if (_points.ContainsAndActive(np.Position + Vector3.back)) {
+            var zKey = _points.GetPointByVector(np.Position + Vector3.back).Position.ExtractZ(2);
+            if (surfaces.ContainsKey(zKey)) {
+                surfaces[zKey].SurfaceHop((np.Position + Vector3.back).Key(), ref _points, false);
             }
-            
-            var forward = np.Position + Vector3.forward;
-            if (_points.ContainsAndActive(forward)) {
-                var zKey = _points.GetPointByVector(forward).Position.ExtractZ(3);
-                if (surfaces.ContainsKey(zKey)) {
-                    surfaces[zKey].SurfaceHop(_points.GetPointByVector(forward), ref _points, false);
-                }
+        }
+        if (_points.ContainsAndActive(np.Position + Vector3.forward)) {
+            var zKey = _points.GetPointByVector(np.Position + Vector3.forward).Position.ExtractZ(3);
+            if (surfaces.ContainsKey(zKey)) {
+                surfaces[zKey].SurfaceHop((np.Position + Vector3.forward).Key(), ref _points, false);
             }
-            
-            var right = np.Position + Vector3.right;
-            if (_points.ContainsAndActive(right)) {
-                var xKey = _points.GetPointByVector(right).Position.ExtractX(4);
-                if (surfaces.ContainsKey(xKey)) {
-                    surfaces[xKey].SurfaceHop(_points.GetPointByVector(right), ref _points, false);
-                }
+        }
+        if (_points.ContainsAndActive(np.Position + Vector3.right)) {
+            var xKey = _points.GetPointByVector(np.Position + Vector3.right).Position.ExtractX(4);
+            if (surfaces.ContainsKey(xKey)) {
+                surfaces[xKey].SurfaceHop((np.Position + Vector3.right).Key(), ref _points, false);
             }
-            
-            var left = np.Position + Vector3.left;
-            if (_points.ContainsAndActive(left)) {
-                var xKey = _points.GetPointByVector(left).Position.ExtractX(5);
-                if (surfaces.ContainsKey(xKey)) {
-                    surfaces[xKey].SurfaceHop(_points.GetPointByVector(left), ref _points, false);
-                }
+        }
+        
+        if (_points.ContainsAndActive(np.Position + Vector3.left)) {
+            var xKey = _points.GetPointByVector(np.Position + Vector3.left).Position.ExtractX(5);
+            if (surfaces.ContainsKey(xKey)) {
+                surfaces[xKey].SurfaceHop((np.Position + Vector3.left).Key(), ref _points, false);
             }
-        // }
+        }
     
-
         if (surfaces.ContainsKey(np.Position.ExtractY(0))) {
-            surfaces[np.Position.ExtractY(0)].SurfaceHop(np, ref _points, skipStart);
+            surfaces[np.Position.ExtractY(0)].SurfaceHop(pKey, ref _points, skipStart);
         }
         if (surfaces.ContainsKey(np.Position.ExtractY(1))) {
-            surfaces[np.Position.ExtractY(1)].SurfaceHop(np, ref _points, skipStart);
+            surfaces[np.Position.ExtractY(1)].SurfaceHop(pKey, ref _points, skipStart);
         }
         
         if (surfaces.ContainsKey(np.Position.ExtractZ(2))) {
-            surfaces[np.Position.ExtractZ(2)].SurfaceHop(np, ref _points, skipStart);
+            surfaces[np.Position.ExtractZ(2)].SurfaceHop(pKey, ref _points, skipStart);
         }
         if (surfaces.ContainsKey(np.Position.ExtractZ(3))) {
-            surfaces[np.Position.ExtractZ(3)].SurfaceHop(np, ref _points, skipStart);
+            surfaces[np.Position.ExtractZ(3)].SurfaceHop(pKey, ref _points, skipStart);
         }
         
         if (surfaces.ContainsKey(np.Position.ExtractX(4))) {
-            surfaces[np.Position.ExtractX(4)].SurfaceHop(np, ref _points, skipStart);
+            surfaces[np.Position.ExtractX(4)].SurfaceHop(pKey, ref _points, skipStart);
         }
         if (surfaces.ContainsKey(np.Position.ExtractX(5))) {
-            surfaces[np.Position.ExtractX(5)].SurfaceHop(np, ref _points, skipStart);
+            surfaces[np.Position.ExtractX(5)].SurfaceHop(pKey, ref _points, skipStart);
         }
     }
     
@@ -743,7 +727,7 @@ public class Trixel : MonoBehaviour {
                 CompareTo(Vector3.Distance(_points[b].Position + resolutionOffset, c)));
         
         foreach (var np in NullPoints) {
-            HandleSurfaces(ref surfaces, _points[np]);
+            HandleSurfaces(ref surfaces, np);
         }
 
         foreach (var surface in surfaces.ToList()) {
@@ -755,7 +739,7 @@ public class Trixel : MonoBehaviour {
 
         if (surfaces.Count != 0) {
             foreach (var np in surfacePoints) {
-                HandleSurfaces(ref surfaces, _points[np]);
+                HandleSurfaces(ref surfaces,np);
             }
             
             foreach (var surface in surfaces.ToList()) {
@@ -874,7 +858,7 @@ public class Trixel : MonoBehaviour {
         }
         
         print($"vertices: {cleanedVertices.Count}");
-        _mesh.vertices  = cleanedVertices.ToArray().ToVector3Array(); 
+        _mesh.vertices  = cleanedVertices.ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
         _mesh.normals   = normals.ToArray();
         _mesh.RecalculateBounds();
