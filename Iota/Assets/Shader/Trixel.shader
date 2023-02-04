@@ -71,7 +71,7 @@ Shader "Unlit/Trixel"
                 lighting += ShadeSH9(half4(worldNormal, 1.0));
                 
                 UNITY_APPLY_FOG(i.fogCoord, col);
-                return color * fixed4(lighting, 1.0);
+                return color * float4(lighting.rgb, 1.0);
             }
             ENDCG
         }

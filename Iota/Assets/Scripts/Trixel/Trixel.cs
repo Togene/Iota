@@ -123,6 +123,7 @@ public class Face {
         i.Add(Helpers.VectorKey(v[2]), v[2].Index);
         i.Add(Helpers.VectorKey(v[3]), v[3].Index);
         vertices = v; 
+        // new []{v[TL], v[TR], v[BR], v[BL]};
         CalculateNormal();
     }
     
@@ -133,8 +134,8 @@ public class Face {
     public void CalculateNormal() {
         Normal = Helpers.GetNormal(
             vertices[0], 
-            vertices[1], 
-            vertices[2]);
+            vertices[2], 
+            vertices[1]);
     }
 
     public void SetIndices(int[] _i) {
@@ -342,13 +343,14 @@ public class Trixel : MonoBehaviour {
     [Range(2, 16)] public int                       Resolution;
     [Range(0.0f, 16.0f)] public float               RenderSpeed;
     
-    private Points                    _points;
+    List<Point>          NullPoints = new();
+    private Points       _points;
     private List<int>    Indices = new();
     private MeshCollider Collider;
     private Vector3      _direction, _hitPoint, _head;
     public  Material     mat;
-    private Vector3 resolutionOffset;
-
+    private Vector3      resolutionOffset;
+    
     private MeshFilter   _mf;
     private MeshRenderer _mr;
     private Mesh         _mesh;
@@ -366,6 +368,7 @@ public class Trixel : MonoBehaviour {
         _points          = new Points();
         resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
         _mf.mesh         = new Mesh();
+        NullPoints       = new List<Point>();
         
         for (int x = 0; x < Resolution; x++) {
             for (int y = 0; y < Resolution; y++) {
@@ -684,7 +687,6 @@ public class Trixel : MonoBehaviour {
     
     // spiral walk
     void Walk2(ref List<Face> faces) {
-        List<Point> nullPoints    = new();
         List<Point> surfacePoints = new();
         var         surfaces      = new Dictionary<string, Surface>();
         
@@ -692,55 +694,77 @@ public class Trixel : MonoBehaviour {
             // top and bottom
             if (p.Active) {
                 if (!_points.Top(p)) {
+                    surfacePoints.Add(p);
                     if (!surfaces.ContainsKey(p.Position.ExtractY(0))) {
                         surfaces.Add(p.Position.ExtractY(0), new Surface(0));
                         surfacePoints.Add(p);
                     }
+                    // else {
+                       
+                    // }
                 }
                 if (!_points.Down(p)) {
+                    surfacePoints.Add(p);
                     if (!surfaces.ContainsKey(p.Position.ExtractY(1))) {
                         surfaces.Add(p.Position.ExtractY(1), new Surface(1));
                         surfacePoints.Add(p);
                     }
+                    // else {
+                     
+                    // }
                 }
                 // // front and back
                 if (!_points.Forward(p)) {
+                    surfacePoints.Add(p);
                     if (!surfaces.ContainsKey(p.Position.ExtractZ(2))) {
                         surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
                         surfacePoints.Add(p);
                     }
+                    // else {
+                    //     
+                    // }
                 }
                 if (!_points.Back(p)) {
+                    surfacePoints.Add(p);
                     if (!surfaces.ContainsKey(p.Position.ExtractZ(3))) {
                         surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
                         surfacePoints.Add(p);
                     }
+                    // else {
+                    // }
                 }
                 // left and right
                 if (!_points.Left(p)) {
+                    surfacePoints.Add(p);
                     if (!surfaces.ContainsKey(p.Position.ExtractX(4))) {
                         surfaces.Add(p.Position.ExtractX(4), new Surface(4));
-                        surfacePoints.Add(p);
                     }
+                    // else {
+                        // surfacePoints.Add(p);
+                    // }
                 } 
                 if (!_points.Right(p)) {
+                    surfacePoints.Add(p);
                     if (!surfaces.ContainsKey(p.Position.ExtractX(5))) {
                         surfaces.Add(p.Position.ExtractX(5), new Surface(5));
-                        surfacePoints.Add(p);
                     }
+                    // else {
+                        // surfacePoints.Add(p);
+                    // }
                 }
             }
             else {
-                nullPoints.Add(p);
+                // nullPoints.Add(p);
             }
         }
-
+        
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
-        nullPoints.Sort((a, b) => 
+        
+        NullPoints.Sort((a, b) => 
             Vector3.Distance(a.Position + resolutionOffset, c).
                 CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
         
-        foreach (var np in nullPoints.ToList()) {
+        foreach (var np in NullPoints) {
             HandleSurfaces(ref surfaces, np, true);
         }
 
@@ -804,7 +828,6 @@ public class Trixel : MonoBehaviour {
         
         if (faces.Count != 0) {
             for (int i = 0; i < faces.Count; i++) {
-                
                 var indices = faces[i].indices;
                 
                 faces[i].CalculateNormal();
@@ -908,16 +931,21 @@ public class Trixel : MonoBehaviour {
     // Update is called once per frame
     void Update() {
         if (MouseSelect()) {
-            if (_direction != null) {
-                if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
-                    _points.SetPointsActive(_hitPoint - _direction/2, false);
-                    StartCoroutine(LittleBabysMarchingCubes());
-                }
-                if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint + _direction/2)) {
-                    _points.SetPointsActive(_hitPoint + _direction/2, true);
-                    StartCoroutine(LittleBabysMarchingCubes());
-                }
-            };
+            // creating null point
+            if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
+                _points.SetPointsActive(_hitPoint - _direction/2, false);
+                NullPoints.Add(_points[(_hitPoint - _direction/2).Key()]);
+                
+                StartCoroutine(LittleBabysMarchingCubes());
+            }
+            
+            // removing null point
+            if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint + _direction/2)) {
+                _points.SetPointsActive(_hitPoint + _direction/2, true);
+                NullPoints.Remove(_points[(_hitPoint + _direction/2).Key()]);
+                
+                StartCoroutine(LittleBabysMarchingCubes());
+            }
         }
         
         if (Input.GetKeyDown(KeyCode.P)) {
