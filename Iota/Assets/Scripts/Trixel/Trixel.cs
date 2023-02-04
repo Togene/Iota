@@ -59,28 +59,25 @@ public class Point {
         int TTL, int TTR, int TBR, int TBL, 
         int BTL, int BTR, int BBR, int BBL) {
         
+        
+        // TTL 0, TTR 1, TBR 2, TBL 3, BTL 4, BTR 5, BBR 6, BBL 7
         // top face
-        Faces[0] = new Face(this, v, TTL, TTR, TBR, TBL);
-        
+        Faces[0] = new Face(this, new []{v[0], v[1], v[2], v[3]});
         // bottom face
-        Faces[1] = new Face(this, v, BBL, BBR, BTR, BTL);
-        
+        Faces[1] = new Face(this, new []{v[4], v[5], v[6], v[7]});
         // front face
-        Faces[2] = new Face(this, v, TTR, TTL, BTL, BTR); 
-        
+        Faces[2] = new Face(this, new []{v[1], v[0], v[4], v[5]});
         // back face
-        Faces[3] = new Face(this, v, TBL, TBR, BBR, BBL);
-        
+        Faces[3] = new Face(this, new []{v[3], v[2], v[6], v[7]});
         // left face
-        Faces[4] = new Face(this, v, TTL, TBL, BBL, BTL);
-        
+        Faces[4] = new Face(this, new []{v[0], v[3], v[7], v[4]});
         // right face
-        Faces[5] = new Face(this, v, TBR, TTR, BTR, BBR);
+        Faces[5] = new Face(this, new []{v[2], v[1], v[5], v[6]});
     }
-    
-    public void SetFace(Face s) {
-        Faces[0] = s;
-    }
+    //
+    // public void SetFace(Face s) {
+    //     Faces[0] = s;
+    // }
 }
 
 
@@ -88,6 +85,7 @@ public class Vertex {
      public bool    Virtual = false;
      public Vector3 Vertice;
      public string  Key;
+     public int     Index;
      public int     Type;
      // public Vector3 Normal = Vector3.up;
      
@@ -109,29 +107,29 @@ public class Vertex {
 public class Face {
     public  Point                    P;
     private Dictionary <string, int> i = new();
-    public  float                    size;
+    // public  float                    Size;
     private Vertex[]                 vertices;
-    public Vector3                  Normal;
+    public Vector3                   Normal;
     public  int[]                    indices;
     
     public Face(){}
     
-    public Face(Point p, Vertex[] v, int TL, int TR, int BR, int BL) {
+    public Face(Point p, Vertex[] v) {
         P       = p;
-        indices = new[] { TL, TR, BR, BL };
+        indices = new[] { v[0].Index, v[1].Index, v[2].Index, v[3].Index};
         
-        i.Add(Helpers.VectorKey(v[TL]), TL);
-        i.Add(Helpers.VectorKey(v[TR]), TR);
-        i.Add(Helpers.VectorKey(v[BR]), BR);
-        i.Add(Helpers.VectorKey(v[BL]), BL);
-        
-        vertices = new []{v[TL], v[TR], v[BR], v[BL]};
+        i.Add(Helpers.VectorKey(v[0]), v[0].Index);
+        i.Add(Helpers.VectorKey(v[1]), v[1].Index);
+        i.Add(Helpers.VectorKey(v[2]), v[2].Index);
+        i.Add(Helpers.VectorKey(v[3]), v[3].Index);
+        vertices = v; 
         CalculateNormal();
     }
     
-    public void CalculateSize() {
-        size = (vertices[0].Vertice - vertices[2].Vertice).magnitude;
-    }
+    // public void CalculateSize() {
+    //     Size = (vertices[0].Vertice - vertices[2].Vertice).magnitude;
+    // }
+    
     public void CalculateNormal() {
         Normal = Helpers.GetNormal(
             vertices[0], 
@@ -153,7 +151,7 @@ public class Face {
 
 public class Points {
     public  Dictionary<string, Vertex> VerticesKeyMap = new();
-    public  List<string> VerticeKeys = new();
+    // public  List<string> VerticeKeys = new();
     public  Vertex[]                   Vertices         = new Vertex[]{};
     private Dictionary<string, Point>  PointsList       = new();
   
@@ -198,13 +196,13 @@ public class Points {
             
             VerticesKeyMap.Add(v.Key, v);
             Vertices = VerticesKeyMap.Values.ToArray();
-            VerticeKeys = VerticesKeyMap.Keys.ToList();
-            
+            v.Index  = VerticesKeyMap.Count - 1;
+
             return VerticesKeyMap.Count - 1;
         }
         
         // TODO: replace
-        return VerticeKeys.IndexOf(v.Key);
+        return VerticesKeyMap[v.Key].Index;
     }
     
     Dictionary<int, int> CellState(Point p) {
@@ -267,7 +265,11 @@ public class Points {
             var p       = PointsList[(next).Key()];
             
             var indices = CellState(p);
-            p.SetFaces(Vertices, 
+            p.SetFaces(
+                new [] {
+                    Vertices[indices[0]], Vertices[indices[1]], Vertices[indices[2]], Vertices[indices[3]],
+                    Vertices[indices[4]], Vertices[indices[5]], Vertices[indices[6]], Vertices[indices[7]]
+                }, 
                 indices[0], indices[1], indices[2], indices[3], 
                 indices[4], indices[5], indices[6], indices[7]);
             
@@ -552,8 +554,8 @@ public class Trixel : MonoBehaviour {
                 connected                        = true;
             }
             
-            vp.CalculateSize();
-            vp1.CalculateSize();
+            // vp.CalculateSize();
+            // vp1.CalculateSize();
             return connected;
         }
         
@@ -605,121 +607,130 @@ public class Trixel : MonoBehaviour {
         }
     }
     
-    void HandleSurfaces(ref Dictionary<string, Surface> surfaces, Point np) {
-        // handleAdjacentPoints(np.Position + Vector3.down, ref surfaces);  
-        var down = np.Position + Vector3.down;
-        if (_points.ContainsAndActive(down)) {
-            var yKey = _points.GetPointByVector(down).Position.ExtractY(0);
-            if (surfaces.ContainsKey(yKey)) {
-                surfaces[yKey].SurfaceHop(_points.GetPointByVector(down), ref _points, false);
+    void HandleSurfaces(ref Dictionary<string, Surface> surfaces, Point np, bool skipStart = true) {
+
+        // if (!skipStart) {
+            var down = np.Position + Vector3.down;
+            if (_points.ContainsAndActive(down)) {
+                var yKey = _points.GetPointByVector(down).Position.ExtractY(0);
+                if (surfaces.ContainsKey(yKey)) {
+                    surfaces[yKey].SurfaceHop(_points.GetPointByVector(down), ref _points, false);
+                }
             }
-        }
-        
-        var up = np.Position + Vector3.up;
-        if (_points.ContainsAndActive(up)) {
-            var yKey = _points.GetPointByVector(up).Position.ExtractY(1);
-            if (surfaces.ContainsKey(yKey)) {
-                surfaces[yKey].SurfaceHop(_points.GetPointByVector(up), ref _points, false);
+            
+            var up = np.Position + Vector3.up;
+            if (_points.ContainsAndActive(up)) {
+                var yKey = _points.GetPointByVector(up).Position.ExtractY(1);
+                if (surfaces.ContainsKey(yKey)) {
+                    surfaces[yKey].SurfaceHop(_points.GetPointByVector(up), ref _points, false);
+                }
             }
-        }
-        
-        var back = np.Position + Vector3.back;
-        if (_points.ContainsAndActive(back)) {
-            var zKey = _points.GetPointByVector(back).Position.ExtractZ(2);
-            if (surfaces.ContainsKey(zKey)) {
-                surfaces[zKey].SurfaceHop(_points.GetPointByVector(back), ref _points, false);
+            
+            var back = np.Position + Vector3.back;
+            if (_points.ContainsAndActive(back)) {
+                var zKey = _points.GetPointByVector(back).Position.ExtractZ(2);
+                if (surfaces.ContainsKey(zKey)) {
+                    surfaces[zKey].SurfaceHop(_points.GetPointByVector(back), ref _points, false);
+                }
             }
-        }
-        
-        var forward = np.Position + Vector3.forward;
-        if (_points.ContainsAndActive(forward)) {
-            var zKey = _points.GetPointByVector(forward).Position.ExtractZ(3);
-            if (surfaces.ContainsKey(zKey)) {
-                surfaces[zKey].SurfaceHop(_points.GetPointByVector(forward), ref _points, false);
+            
+            var forward = np.Position + Vector3.forward;
+            if (_points.ContainsAndActive(forward)) {
+                var zKey = _points.GetPointByVector(forward).Position.ExtractZ(3);
+                if (surfaces.ContainsKey(zKey)) {
+                    surfaces[zKey].SurfaceHop(_points.GetPointByVector(forward), ref _points, false);
+                }
             }
-        }
-        
-        var right = np.Position + Vector3.right;
-        if (_points.ContainsAndActive(right)) {
-            var xKey = _points.GetPointByVector(right).Position.ExtractX(4);
-            if (surfaces.ContainsKey(xKey)) {
-                surfaces[xKey].SurfaceHop(_points.GetPointByVector(right), ref _points, false);
+            
+            var right = np.Position + Vector3.right;
+            if (_points.ContainsAndActive(right)) {
+                var xKey = _points.GetPointByVector(right).Position.ExtractX(4);
+                if (surfaces.ContainsKey(xKey)) {
+                    surfaces[xKey].SurfaceHop(_points.GetPointByVector(right), ref _points, false);
+                }
             }
-        }
-        
-        var left = np.Position + Vector3.left;
-        if (_points.ContainsAndActive(left)) {
-            var xKey = _points.GetPointByVector(left).Position.ExtractX(5);
-            if (surfaces.ContainsKey(xKey)) {
-                surfaces[xKey].SurfaceHop(_points.GetPointByVector(left), ref _points, false);
+            
+            var left = np.Position + Vector3.left;
+            if (_points.ContainsAndActive(left)) {
+                var xKey = _points.GetPointByVector(left).Position.ExtractX(5);
+                if (surfaces.ContainsKey(xKey)) {
+                    surfaces[xKey].SurfaceHop(_points.GetPointByVector(left), ref _points, false);
+                }
             }
-        }
+        // }
+    
 
         if (surfaces.ContainsKey(np.Position.ExtractY(0))) {
-            surfaces[np.Position.ExtractY(0)].SurfaceHop(np, ref _points);
+            surfaces[np.Position.ExtractY(0)].SurfaceHop(np, ref _points, skipStart);
         }
         if (surfaces.ContainsKey(np.Position.ExtractY(1))) {
-            surfaces[np.Position.ExtractY(1)].SurfaceHop(np, ref _points);
+            surfaces[np.Position.ExtractY(1)].SurfaceHop(np, ref _points, skipStart);
         }
         
         if (surfaces.ContainsKey(np.Position.ExtractZ(2))) {
-            surfaces[np.Position.ExtractZ(2)].SurfaceHop(np, ref _points);
+            surfaces[np.Position.ExtractZ(2)].SurfaceHop(np, ref _points, skipStart);
         }
         if (surfaces.ContainsKey(np.Position.ExtractZ(3))) {
-            surfaces[np.Position.ExtractZ(3)].SurfaceHop(np, ref _points);
+            surfaces[np.Position.ExtractZ(3)].SurfaceHop(np, ref _points, skipStart);
         }
         
         if (surfaces.ContainsKey(np.Position.ExtractX(4))) {
-            surfaces[np.Position.ExtractX(4)].SurfaceHop(np, ref _points);
+            surfaces[np.Position.ExtractX(4)].SurfaceHop(np, ref _points, skipStart);
         }
         if (surfaces.ContainsKey(np.Position.ExtractX(5))) {
-            surfaces[np.Position.ExtractX(5)].SurfaceHop(np, ref _points);
+            surfaces[np.Position.ExtractX(5)].SurfaceHop(np, ref _points, skipStart);
         }
     }
     
     // spiral walk
     void Walk2(ref List<Face> faces) {
-        List<Point> nullPoints = new();
-        var         surfaces   = new Dictionary<string, Surface>();
+        List<Point> nullPoints    = new();
+        List<Point> surfacePoints = new();
+        var         surfaces      = new Dictionary<string, Surface>();
         
         foreach (var p in _points.GetPointList()) {
             // top and bottom
-            if (!_points.Top(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractY(0))) {
-                    surfaces.Add(p.Position.ExtractY(0), new Surface(0));
+            if (p.Active) {
+                if (!_points.Top(p)) {
+                    if (!surfaces.ContainsKey(p.Position.ExtractY(0))) {
+                        surfaces.Add(p.Position.ExtractY(0), new Surface(0));
+                        surfacePoints.Add(p);
+                    }
+                }
+                if (!_points.Down(p)) {
+                    if (!surfaces.ContainsKey(p.Position.ExtractY(1))) {
+                        surfaces.Add(p.Position.ExtractY(1), new Surface(1));
+                        surfacePoints.Add(p);
+                    }
+                }
+                // // front and back
+                if (!_points.Forward(p)) {
+                    if (!surfaces.ContainsKey(p.Position.ExtractZ(2))) {
+                        surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
+                        surfacePoints.Add(p);
+                    }
+                }
+                if (!_points.Back(p)) {
+                    if (!surfaces.ContainsKey(p.Position.ExtractZ(3))) {
+                        surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
+                        surfacePoints.Add(p);
+                    }
+                }
+                // left and right
+                if (!_points.Left(p)) {
+                    if (!surfaces.ContainsKey(p.Position.ExtractX(4))) {
+                        surfaces.Add(p.Position.ExtractX(4), new Surface(4));
+                        surfacePoints.Add(p);
+                    }
+                } 
+                if (!_points.Right(p)) {
+                    if (!surfaces.ContainsKey(p.Position.ExtractX(5))) {
+                        surfaces.Add(p.Position.ExtractX(5), new Surface(5));
+                        surfacePoints.Add(p);
+                    }
                 }
             }
-            if (!_points.Down(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractY(1))) {
-                    surfaces.Add(p.Position.ExtractY(1), new Surface(1));
-                }
-            }
-            // // front and back
-            if (!_points.Forward(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractZ(2))) {
-                    surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
-                }
-            }
-            if (!_points.Back(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractZ(3))) {
-                    surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
-                }
-            }
-            // left and right
-            if (!_points.Left(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractX(4))) {
-                    surfaces.Add(p.Position.ExtractX(4), new Surface(4));
-                }
-                
-            } 
-            if (!_points.Right(p) && p.Active) {
-                if (!surfaces.ContainsKey(p.Position.ExtractX(5))) {
-                    surfaces.Add(p.Position.ExtractX(5), new Surface(5));
-                }
-            }
-            
-            // void hoppers
-            if (!p.Active) {
+            else {
                 nullPoints.Add(p);
             }
         }
@@ -730,7 +741,7 @@ public class Trixel : MonoBehaviour {
                 CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
         
         foreach (var np in nullPoints.ToList()) {
-            HandleSurfaces(ref surfaces, np);
+            HandleSurfaces(ref surfaces, np, true);
         }
 
         foreach (var surface in surfaces.ToList()) {
@@ -741,8 +752,8 @@ public class Trixel : MonoBehaviour {
         }
 
         if (surfaces.Count != 0) {
-            foreach (var np in _points.GetList().ToList()) {
-                HandleSurfaces(ref surfaces, np.Value);
+            foreach (var np in surfacePoints) {
+                HandleSurfaces(ref surfaces, np);
             }
             
             foreach (var surface in surfaces.ToList()) {
