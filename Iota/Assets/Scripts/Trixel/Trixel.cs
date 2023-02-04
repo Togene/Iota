@@ -17,29 +17,23 @@ public static class ExtensionMethods {
     }
     public static string ExtractY(this Vector3 v, int surfaceID) {
         var y = v.y;
-
         if (y == 0) {
             y = -99;
         }
-        
         return $"{new Vector3(0, y, 0).ToString()}{surfaceID}";
     }
     public static string ExtractX(this Vector3 v, int surfaceID) {
         var x = v.x;
-
         if (x == 0) {
             x = -99;
         }
-        
         return $"{new Vector3(x, 0, 0).ToString()}{surfaceID}";
     }
     public static string ExtractZ(this Vector3 v, int surfaceID) {
         var z = v.z;
-
         if (z == 0) {
             z = -99;
         }
-        
         return $"{new Vector3(0, 0, z).ToString()}{surfaceID}";
     }
 }
@@ -57,25 +51,36 @@ public class Point {
         Position = p;
     }
 
-    public void SetFaces(Vertex[] v) {
+    public void SetFaces(int faceType, Vertex[] v) {
         // TTL 0, TTR 1, TBR 2, TBL 3, BTL 4, BTR 5, BBR 6, BBL 7
-        // top face
-        Faces[0] = new Face(Position.Key(), new []{v[0], v[1], v[2], v[3]});
-        // bottom face
-        Faces[1] = new Face(Position.Key(), new []{v[4], v[5], v[6], v[7]});
-        // front face
-        Faces[2] = new Face(Position.Key(), new []{v[1], v[0], v[4], v[5]});
-        // back face
-        Faces[3] = new Face(Position.Key(), new []{v[3], v[2], v[6], v[7]});
-        // left face
-        Faces[4] = new Face(Position.Key(), new []{v[0], v[3], v[7], v[4]});
-        // right face
-        Faces[5] = new Face(Position.Key(), new []{v[2], v[1], v[5], v[6]});
+
+        switch (faceType) {
+            case 0:
+                // top face
+                Faces[0] = new Face(Position.Key(), new []{v[0], v[1], v[2], v[3]});
+                break;
+            case 1:
+                // bottom face
+                Faces[1] = new Face(Position.Key(), new []{v[4], v[5], v[6], v[7]});
+                break;
+            case 2:
+                // front face
+                Faces[2] = new Face(Position.Key(), new []{v[1], v[0], v[4], v[5]});
+                break;
+            case 3:
+                // back face
+                Faces[3] = new Face(Position.Key(), new []{v[3], v[2], v[6], v[7]});
+                break;
+            case 4:
+                // left face
+                Faces[4] = new Face(Position.Key(), new []{v[0], v[3], v[7], v[4]});
+                break;
+            case 5:
+                // right face
+                Faces[5] = new Face(Position.Key(), new []{v[2], v[1], v[5], v[6]});
+                break;
+        }
     }
-    //
-    // public void SetFace(Face s) {
-    //     Faces[0] = s;
-    // }
 }
 
 
@@ -104,24 +109,13 @@ public class Vertex {
 
 public class Face {
     public  string                 PKey;
-    private Vertex[]                 vertices;
-    public Vector3                   Normal;
-    public  int[]                    indices;
-    
-    // private Dictionary <string, int> i = new();
-    // public  float                    Size;
-    public Face(){}
-    
+    private Vertex[]               Vertices;
+    public Vector3                 Normal;
+    public  int[]                  indices;
     public Face(string p, Vertex[] v) {
         PKey    = p;
         indices = new[] { v[0].Index, v[1].Index, v[2].Index, v[3].Index};
-        
-        // i.Add(Helpers.VectorKey(v[0]), v[0].Index);
-        // i.Add(Helpers.VectorKey(v[1]), v[1].Index);
-        // i.Add(Helpers.VectorKey(v[2]), v[2].Index);
-        // i.Add(Helpers.VectorKey(v[3]), v[3].Index);
-        vertices = v; 
-        // new []{v[TL], v[TR], v[BR], v[BL]};
+        Vertices = v; 
         CalculateNormal();
     }
     
@@ -131,9 +125,9 @@ public class Face {
     
     public void CalculateNormal() {
         Normal = Helpers.GetNormal(
-            vertices[0], 
-            vertices[2], 
-            vertices[1]);
+            Vertices[0], 
+            Vertices[2], 
+            Vertices[1]);
     }
 
     public void SetIndices(int[] _i) {
@@ -150,7 +144,6 @@ public class Face {
 
 public class Points {
     public  Dictionary<string, Vertex> VerticesKeyMap = new();
-    // public  List<string> VerticeKeys = new();
     public  Vertex[]                   Vertices         = new Vertex[]{};
     private Dictionary<string, Point>  PointsList       = new();
   
@@ -199,8 +192,6 @@ public class Points {
 
             return VerticesKeyMap.Count - 1;
         }
-        
-        // TODO: replace
         return VerticesKeyMap[v.Key].Index;
     }
     
@@ -218,7 +209,6 @@ public class Points {
             // BL
             caseIndex.Add(3,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.up) / 2,
                 VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 3));
-            
             // TL
             caseIndex.Add(4, AddVertice(p.Position + (Vector3.forward + Vector3.left + Vector3.down) / 2, 
                 VerticeCondition(!ForwardLeft(p), !Left(p), !Forward(p)), 4));
@@ -231,7 +221,6 @@ public class Points {
             // BL
             caseIndex.Add(7,AddVertice(p.Position + (Vector3.back + Vector3.left + Vector3.down) / 2,
                 VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 7));
-            
             return caseIndex; 
     }
 
@@ -254,26 +243,74 @@ public class Points {
                 return false;
         }
     }
+    
+       bool MergePoints(ref Face vp,Face vp1) {
+            var TL1 = vp.indices[0];
+            var TR1 = vp.indices[1];
+            var BR1 = vp.indices[2];
+            var BL1 = vp.indices[3];
+                     
+            var TL2 = vp1.indices[0];
+            var TR2 = vp1.indices[1];
+            var BR2 = vp1.indices[2];
+            var BL2 = vp1.indices[3];
+            
+            bool connected = false;
 
+            // vp1 on bottom        
+            if (BL1 == TL2 && BR1 == TR2) {
+                vp.indices[2] = BR2;        
+                vp.indices[3] = BL2;
+                connected                        = true;
+            }
+            // vp1 on top
+            if (TL1 == BL2 && TR1 == BR2) {
+                vp.indices[0] = TL2;        
+                vp.indices[1] = TR2;
+                connected                        = true;
+            }
+            // vp1 on right
+            if (TR1 == TL2 && BR1 == BL2) {
+                vp.indices[1] = TR2;        
+                vp.indices[2] = BR2;
+                connected                        = true;
+            }
+            // vp1 on left 
+            if (TL1 == TR2 && BL1 == BR2) {
+                vp.indices[0] = TL2;        
+                vp.indices[3] = BL2;
+                connected                        = true;
+            }
+            return connected;
+        }
+        
+    void EvalualatePoints(Face vp, ref List<Face> list) {
+        for (int k = 0; k < list.Count; k++) {
+            var vp1 = list[k];
+            if (MergePoints(ref vp1, vp)) {
+                return;
+            }
+        }
+        list.Add(vp);
+    }
+        
     public void Hop(ref List<Face> ps, Vector3 start, Vector3 step, int checkType, bool skipStart = true) {
+        
         Vector3 next = start;
         if (skipStart) {
              next = start + step;
         }
+        
         if (ContainsAndActive(next) && !Checked(next, checkType) && !ActiveByCheckType(checkType, next)) {
             var p       = PointsList[(next).Key()];
-            
             var indices = CellState(p);
-            p.SetFaces(
+            p.SetFaces(checkType,
                 new [] {
                     Vertices[indices[0]], Vertices[indices[1]], Vertices[indices[2]], Vertices[indices[3]],
                     Vertices[indices[4]], Vertices[indices[5]], Vertices[indices[6]], Vertices[indices[7]]
-                });
-            
-            ps.Add(p.Faces[checkType]);
-            
+            });
+            EvalualatePoints(p.Faces[checkType], ref ps);
             Hop(ref ps, p.Position, step, checkType);
-            
             PointsList[(next).Key()].FacesChecked[checkType] = true;
         }
     }
@@ -379,15 +416,12 @@ public class Trixel : MonoBehaviour {
 
     public class Surface {
         private List<Face> Faces = new ();
-        public int SurfaceType;
+        private int        SurfaceType;
         
         List<Face> frontList = new ();
         List<Face> backList  = new ();
         List<Face> leftList  = new ();
         List<Face> rightList = new ();
-        
-        public Surface() {
-        }
         
         public Surface(int type) {
             SurfaceType = type;
@@ -456,24 +490,24 @@ public class Trixel : MonoBehaviour {
             List<Face> localLeft  = new List<Face>();
             List<Face> localRight = new List<Face>();
             
-            points.Hop(ref localFront, points[pKey].Position, frontStep, SurfaceType, skipStart);
-            points.Hop(ref localBack, points[pKey].Position, backStep, SurfaceType, skipStart);
-            points.Hop(ref localLeft, points[pKey].Position, leftStep, SurfaceType, skipStart);
-            points.Hop(ref localRight, points[pKey].Position, rigtStep, SurfaceType, skipStart);
+            points.Hop(ref localFront, points[pKey].Position, frontStep, SurfaceType, false);
+            points.Hop(ref localBack, points[pKey].Position, backStep, SurfaceType, false);
+            points.Hop(ref localLeft, points[pKey].Position, leftStep, SurfaceType, false);
+            points.Hop(ref localRight, points[pKey].Position, rigtStep, SurfaceType, false);
             
             if (localFront.Count != 0) {
                 List<Face> tangentLeft  = new List<Face>();
                 List<Face> tangentRight = new List<Face>();
                 foreach (var fp in localFront) {
-                    points.Hop(ref tangentLeft, points[fp.PKey].Position, leftStep, SurfaceType, skipStart);
-                    points.Hop(ref tangentRight, points[fp.PKey].Position, rigtStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentLeft, points[fp.PKey].Position, leftStep, SurfaceType, false);
+                    points.Hop(ref tangentRight, points[fp.PKey].Position, rigtStep, SurfaceType, false);
                 }
                 
                 if (tangentLeft.Count != 0) {
-                    localLeft.AddRange(EvalualatePoints(tangentLeft));
+                    localLeft.AddRange((tangentLeft));
                 }
                 if (tangentRight.Count != 0) {
-                    localRight.AddRange(EvalualatePoints(tangentRight));
+                    localRight.AddRange((tangentRight));
                 }
                 AddFront(EvalualatePoints(localFront));
             }
@@ -482,14 +516,14 @@ public class Trixel : MonoBehaviour {
                 List<Face> tangentLeft  = new List<Face>();
                 List<Face> tangentRight = new List<Face>();
                 foreach (var fp in localBack) {
-                    points.Hop(ref tangentLeft, points[fp.PKey].Position, leftStep, SurfaceType, skipStart);
-                    points.Hop(ref tangentRight, points[fp.PKey].Position, rigtStep, SurfaceType, skipStart);
+                    points.Hop(ref tangentLeft, points[fp.PKey].Position, leftStep, SurfaceType, false);
+                    points.Hop(ref tangentRight, points[fp.PKey].Position, rigtStep, SurfaceType, false);
                 }
                 if (tangentLeft.Count != 0) {
-                    localLeft.AddRange(EvalualatePoints(tangentLeft));
+                    localLeft.AddRange((tangentLeft));
                 }
                 if (tangentRight.Count != 0) {
-                    localRight.AddRange(EvalualatePoints(tangentRight));
+                    localRight.AddRange((tangentRight));
                 }
                 AddBack(EvalualatePoints(localBack));
             }
@@ -562,7 +596,7 @@ public class Trixel : MonoBehaviour {
             if (list.Count == 1) {
                 return list;
             }
-            for (int x = 0; x < 4; x++) {
+            for (int x = 0; x < 2; x++) {
                 for (int i = 0; i < list.ToList().Count; i++) {
                     var vp = list[i];
                     for (int k = 0; k < list.ToList().Count; k++) {
@@ -739,7 +773,7 @@ public class Trixel : MonoBehaviour {
 
         if (surfaces.Count != 0) {
             foreach (var np in surfacePoints) {
-                HandleSurfaces(ref surfaces,np);
+                HandleSurfaces(ref surfaces, np);
             }
             
             foreach (var surface in surfaces.ToList()) {
