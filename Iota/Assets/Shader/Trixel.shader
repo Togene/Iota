@@ -6,32 +6,32 @@ Shader "Unlit/Trixel"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
-        LOD 100
-
+        Tags {"LightMode"="ForwardBase"}
         Pass
         {
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             // make fog work
-            #pragma multi_compile_fog
-
-           #include "UnityCG.cginc"
+            
+            #include "UnityCG.cginc"
             #include "Lighting.cginc"
-
+            #pragma multi_compile_fwdbase nolightmap nodirlightmap nodynlightmap novertexlight
+            #include "AutoLight.cginc"
+            
             struct appdata
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+              
                 half3 normal : NORMAL;
             };
 
             struct v2f
             {
                 float2 uv : TEXCOORD0;
-                float2 uv1 : TEXCOORD1;
                 UNITY_FOG_COORDS(1)
+               SHADOW_COORDS(1) // put shadows data into TEXCOORD1
                 float4 vertex : SV_POSITION;
                 half3 worldNormal : NORMAL;
             };
@@ -45,8 +45,11 @@ Shader "Unlit/Trixel"
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 
                 o.uv = TRANSFORM_TEX(v.uv, _MainTexX);
+          
+                
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 UNITY_TRANSFER_FOG(o,o.vertex);
+                TRANSFER_SHADOW(o);
                 return o;
             }
 
@@ -68,13 +71,44 @@ Shader "Unlit/Trixel"
                 
                 fixed ndotl = saturate(dot(worldNormal, normalize(_WorldSpaceLightPos0.xyz)));
                 fixed3 lighting = ndotl * _LightColor0;
+                fixed shadow = SHADOW_ATTENUATION(i);
                 lighting += ShadeSH9(half4(worldNormal, 1.0));
                 
                 UNITY_APPLY_FOG(i.fogCoord, col);
-                return color * float4(lighting.rgb, 1.0);
+                return color * float4(lighting.rgb, 1.0) * shadow;
             }
             ENDCG
         }
+        // shadow caster rendering pass, implemented manually
+        // using macros from UnityCG.cginc
+        Pass
+        {
+            Tags {"LightMode"="ShadowCaster"}
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_shadowcaster
+            #include "UnityCG.cginc"
+
+            struct v2f { 
+                V2F_SHADOW_CASTER;
+            };
+
+            v2f vert(appdata_base v)
+            {
+                v2f o;
+                TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
+                return o;
+            }
+
+            float4 frag(v2f i) : SV_Target
+            {
+                SHADOW_CASTER_FRAGMENT(i)
+            }
+            ENDCG
+        }
+           // shadow casting support
+        UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
     }
-    Fallback "Diffuse"
 }

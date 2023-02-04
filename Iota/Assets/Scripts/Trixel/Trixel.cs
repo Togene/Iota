@@ -378,7 +378,6 @@ public class Points {
 //     0 + step, -- Top Left        // 0
 //     1 + step, -- Top Right       // 1
 //     2 + step, -- Bottom Right    // 2
-
 //     0 + step, -- Top Left        // 3
 //     2 + step, -- Bottom Right    // 4
 //     3 + step  -- Bottom Left     // 5
@@ -479,7 +478,6 @@ public class Trixel : MonoBehaviour {
             if (addPoints) surfacePoints.Add(pKey);;
         }
         if (!_points.Down(p)) {
-            // surfacePoints.Add(pKey);
             if (!Surfaces.ContainsKey(p.Position.ExtractY(1))) {
                 Surfaces.Add(p.Position.ExtractY(1), new Surface(1));
             }
@@ -487,14 +485,12 @@ public class Trixel : MonoBehaviour {
         }
         // // front and back
         if (!_points.Forward(p)) {
-            // surfacePoints.Add(pKey);
             if (!Surfaces.ContainsKey(p.Position.ExtractZ(2))) {
                 Surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
             }
             if (addPoints) surfacePoints.Add(pKey);;
         }
         if (!_points.Back(p)) {
-            // surfacePoints.Add(pKey);
             if (!Surfaces.ContainsKey(p.Position.ExtractZ(3))) {
                 Surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
             }
@@ -502,7 +498,6 @@ public class Trixel : MonoBehaviour {
         }
         // left and right
         if (!_points.Left(p)) {
-            // surfacePoints.Add(pKey);
             if (!Surfaces.ContainsKey(p.Position.ExtractX(4))) {
                 Surfaces.Add(p.Position.ExtractX(4), new Surface(4));
             }
@@ -824,32 +819,18 @@ public class Trixel : MonoBehaviour {
                 CompareTo(Vector3.Distance(_points[b].Position + resolutionOffset, c)));
         
         foreach (var np in NullPoints) {
-            // NewSurface(np, false);
             HandleSurfaces(ref Surfaces, np);
         }
         
         foreach (var sp in surfacePoints) {
-            // NewSurface(sp, false);
             HandleSurfaces(ref Surfaces, sp);
         }
-
-
         foreach (var surface in Surfaces.ToList()) {
             if (surface.Value.Buffered()) {
                 faces.AddRange(surface.Value.GetSurfaceFaces());
                 Surfaces.Remove(surface.Key);
             }
         }
-        //
-        // if (Surfaces.Count != 0) {
-        //   
-        //     foreach (var surface in Surfaces.ToList()) {
-        //         if (surface.Value.Buffered()) {
-        //             faces.AddRange(surface.Value.GetSurfaceFaces());
-        //             // Surfaces.Remove(surface.Key);
-        //         }
-        //     }
-        // }
     }
 
     Vector2 GenerateUV(Vertex v, Vector3 dir) {
@@ -959,6 +940,7 @@ public class Trixel : MonoBehaviour {
         }
         
         print($"vertices: {cleanedVertices.Count}");
+        
         _mesh.vertices  = cleanedVertices.ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
         _mesh.normals   = normals.ToArray();

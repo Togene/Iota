@@ -59,7 +59,7 @@ public class CameraOrbit : MonoBehaviour
     {
         if (target)
         {
-            if (Input.GetMouseButton(0))
+            if (Input.GetMouseButton(2))
             {
                 targetx += Input.GetAxis("Mouse X") * xSpeed * distance * 0.02f * (5 / (distance + 2));
                 targety -= Input.GetAxis("Mouse Y") * ySpeed * 0.02f;
