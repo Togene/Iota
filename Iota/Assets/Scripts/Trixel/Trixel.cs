@@ -343,7 +343,7 @@ public class Trixel : MonoBehaviour {
     [Range(2, 16)] public int                       Resolution;
     [Range(0.0f, 16.0f)] public float               RenderSpeed;
     
-    List<Point>          NullPoints = new();
+    List<string>          NullPoints = new();
     private Points       _points;
     private List<int>    Indices = new();
     private MeshCollider Collider;
@@ -368,7 +368,7 @@ public class Trixel : MonoBehaviour {
         _points          = new Points();
         resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
         _mf.mesh         = new Mesh();
-        NullPoints       = new List<Point>();
+        NullPoints       = new List<string>();
         
         for (int x = 0; x < Resolution; x++) {
             for (int y = 0; y < Resolution; y++) {
@@ -687,85 +687,63 @@ public class Trixel : MonoBehaviour {
     
     // spiral walk
     void Walk2(ref List<Face> faces) {
-        List<Point> surfacePoints = new();
+        List<string> surfacePoints = new();
         var         surfaces      = new Dictionary<string, Surface>();
         
-        foreach (var p in _points.GetPointList()) {
+        foreach (var pair in _points.GetList()) {
+            var p = pair.Value;
             // top and bottom
             if (p.Active) {
                 if (!_points.Top(p)) {
-                    surfacePoints.Add(p);
+                    surfacePoints.Add(pair.Key);
                     if (!surfaces.ContainsKey(p.Position.ExtractY(0))) {
                         surfaces.Add(p.Position.ExtractY(0), new Surface(0));
-                        surfacePoints.Add(p);
                     }
-                    // else {
-                       
-                    // }
                 }
                 if (!_points.Down(p)) {
-                    surfacePoints.Add(p);
+                    surfacePoints.Add(pair.Key);
                     if (!surfaces.ContainsKey(p.Position.ExtractY(1))) {
                         surfaces.Add(p.Position.ExtractY(1), new Surface(1));
-                        surfacePoints.Add(p);
                     }
-                    // else {
-                     
-                    // }
                 }
                 // // front and back
                 if (!_points.Forward(p)) {
-                    surfacePoints.Add(p);
+                    surfacePoints.Add(pair.Key);
                     if (!surfaces.ContainsKey(p.Position.ExtractZ(2))) {
                         surfaces.Add(p.Position.ExtractZ(2), new Surface(2));
-                        surfacePoints.Add(p);
                     }
-                    // else {
-                    //     
-                    // }
                 }
                 if (!_points.Back(p)) {
-                    surfacePoints.Add(p);
+                    surfacePoints.Add(pair.Key);
                     if (!surfaces.ContainsKey(p.Position.ExtractZ(3))) {
                         surfaces.Add(p.Position.ExtractZ(3), new Surface(3));
-                        surfacePoints.Add(p);
                     }
-                    // else {
-                    // }
                 }
                 // left and right
                 if (!_points.Left(p)) {
-                    surfacePoints.Add(p);
+                    surfacePoints.Add(pair.Key);
                     if (!surfaces.ContainsKey(p.Position.ExtractX(4))) {
                         surfaces.Add(p.Position.ExtractX(4), new Surface(4));
                     }
-                    // else {
-                        // surfacePoints.Add(p);
-                    // }
                 } 
                 if (!_points.Right(p)) {
-                    surfacePoints.Add(p);
+                    surfacePoints.Add(pair.Key);
                     if (!surfaces.ContainsKey(p.Position.ExtractX(5))) {
                         surfaces.Add(p.Position.ExtractX(5), new Surface(5));
                     }
-                    // else {
-                        // surfacePoints.Add(p);
-                    // }
+     
                 }
-            }
-            else {
-                // nullPoints.Add(p);
             }
         }
         
         var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         
         NullPoints.Sort((a, b) => 
-            Vector3.Distance(a.Position + resolutionOffset, c).
-                CompareTo(Vector3.Distance(b.Position + resolutionOffset, c)));
+            Vector3.Distance(_points[a].Position + resolutionOffset, c).
+                CompareTo(Vector3.Distance(_points[b].Position + resolutionOffset, c)));
         
         foreach (var np in NullPoints) {
-            HandleSurfaces(ref surfaces, np, true);
+            HandleSurfaces(ref surfaces, _points[np]);
         }
 
         foreach (var surface in surfaces.ToList()) {
@@ -777,7 +755,7 @@ public class Trixel : MonoBehaviour {
 
         if (surfaces.Count != 0) {
             foreach (var np in surfacePoints) {
-                HandleSurfaces(ref surfaces, np);
+                HandleSurfaces(ref surfaces, _points[np]);
             }
             
             foreach (var surface in surfaces.ToList()) {
@@ -934,7 +912,7 @@ public class Trixel : MonoBehaviour {
             // creating null point
             if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
                 _points.SetPointsActive(_hitPoint - _direction/2, false);
-                NullPoints.Add(_points[(_hitPoint - _direction/2).Key()]);
+                NullPoints.Add((_hitPoint - _direction/2).Key());
                 
                 StartCoroutine(LittleBabysMarchingCubes());
             }
@@ -942,7 +920,7 @@ public class Trixel : MonoBehaviour {
             // removing null point
             if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint + _direction/2)) {
                 _points.SetPointsActive(_hitPoint + _direction/2, true);
-                NullPoints.Remove(_points[(_hitPoint + _direction/2).Key()]);
+                NullPoints.Remove((_hitPoint + _direction/2).Key());
                 
                 StartCoroutine(LittleBabysMarchingCubes());
             }
