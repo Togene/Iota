@@ -468,3 +468,6 @@ MonoBehaviour:
   Resolution: 16
   RenderSpeed: 0
   mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}
+  Top: {fileID: 2800000, guid: 18c64df66cb49412ab716b2ebe620839, type: 3}
+  Side: {fileID: 2800000, guid: 18c64df66cb49412ab716b2ebe620839, type: 3}
+  Front: {fileID: 2800000, guid: 18c64df66cb49412ab716b2ebe620839, type: 3}

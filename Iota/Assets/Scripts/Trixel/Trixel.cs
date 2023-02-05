@@ -82,7 +82,6 @@ public class Vertex {
 }
 
 public class Face {
-    
     public  string                 PKey;
     private Vertex[]               Vertices;
     public Vector3                 Normal;
@@ -90,11 +89,10 @@ public class Face {
     
     public Face(string p, Vertex[] v) {
         PKey    = p;
-        indices = new[] { v[0].Index, v[1].Index, v[2].Index, v[3].Index};
+        indices = new[] {v[0].Index, v[1].Index, v[2].Index, v[3].Index};
         Vertices = v; 
         CalculateNormal();
     }
-    
     // public void CalculateSize() {
     //     Size = (vertices[0].Vertice - vertices[2].Vertice).magnitude;
     // }
@@ -105,11 +103,9 @@ public class Face {
             Vertices[2], 
             Vertices[1]);
     }
-
     public void SetIndices(int[] _i) {
         indices = _i;
     }
-    
     public int[] Dump() {
         return new[] {
             indices[0], indices[1], indices[2],
@@ -126,6 +122,14 @@ public class Points {
     
     public ref Dictionary<string, Point> GetList() {
         return ref PointsList;
+    }
+
+    public int ListCount() {
+        return VerticesKeyMap.Count;
+    }
+    
+    public bool EmpyOrNull() {
+        return VerticesKeyMap == null || VerticesKeyMap.Count != 0;
     }
     
     public  List<Point> GetPointList() {
@@ -392,7 +396,10 @@ public class Trixel : MonoBehaviour {
     private Vector3      _direction, _hitPoint, _head;
     public  Material     mat;
     private Vector3      resolutionOffset;
-    
+
+    public Texture2D Top;
+    public Texture2D Side;
+    public Texture2D Front;
     
     List<string>                surfacePoints = new();
     Dictionary<string, Surface> Surfaces      = new();
@@ -413,7 +420,7 @@ public class Trixel : MonoBehaviour {
     void Init() {
         _direction       = new Vector3();
         _points          = new Points();
-        resolutionOffset = new Vector3(Resolution / 2, Resolution / 2, Resolution / 2);
+        resolutionOffset = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         _mf.mesh         = new Mesh();
         NullPoints       = new List<string>();
         
@@ -998,15 +1005,53 @@ public class Trixel : MonoBehaviour {
         }
     }
 
+    void CarveOnAxis(Vector3 axis, Color[] pixels) {
+        for(int i = 0; i < pixels.Length; i++) {
+            Color pixel = pixels[i];
+            int   x     = i % Resolution;
+            int   y     = i / Resolution;
+            if (pixel.a == 0) {
+                for (int u = 0; u < Resolution; u++) {
+                    Vector3 step = Vector3.zero;
+                    if (axis == Vector3.down || axis == Vector3.up) {
+                        step = new Vector3(x, u, y);
+                    } else if (axis == Vector3.left || axis == Vector3.right) {
+                        step = new Vector3(u, x, y);
+                    } else if (axis == Vector3.forward || axis == Vector3.back) {
+                        step = new Vector3(x, y, u);
+                    }
+                    Vector3 v = step - resolutionOffset;
+                    if (_points.ContainsAndActive(v)) {
+                        _points[v.Key()].Active = false;
+                    }
+                }
+            }
+        }
+    }
+    
+    public void Carve() {
+        // if (_points == null ||_points.EmpyOrNull()) {
+        //     Debug.LogError($"Points are null or empty");
+        //     return;
+        // }
+       
+        var topPixels = Top.GetPixels();
+        
+        CarveOnAxis(Vector3.down, Top.GetPixels());
+        CarveOnAxis(Vector3.right, Side.GetPixels());
+        CarveOnAxis(Vector3.forward, Front.GetPixels());
+        
+        StartCoroutine(LittleBabysMarchingCubes());
+        Debug.Log("Carving");
+    }
+    
     private void OnDrawGizmos() {
         // if (_points == null || _points.GetList() == null || _points.GetList().Count == 0) {
         //     return;
         // }
         //
-        // Gizmos.color = new Color(1,1,1,1f);
-        // Gizmos.DrawWireCube(
-        //     Vector3.zero, 
-        //     Vector3.one * Resolution);
+        Gizmos.color = new Color(1,1,1,1f);
+        Gizmos.DrawWireCube(Vector3.zero - resolutionOffset/Resolution, (Vector3.one* Resolution));
         // Gizmos.color = new Color(1,1,1,.1f);
         // foreach (var p in _points.GetList()) {
         //     if (p.Value.Active) {
