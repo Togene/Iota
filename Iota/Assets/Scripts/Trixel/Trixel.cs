@@ -36,6 +36,10 @@ public static class ExtensionMethods {
         }
         return $"{new Vector3(0, 0, z).ToString()}{surfaceID}";
     }
+
+    public static string ColorToString(this Color p) {
+        return $"<color=#{p.ToHexString()}>█</color>";
+    }
 }
     
 public class Point {
@@ -397,10 +401,8 @@ public class Trixel : MonoBehaviour {
     public  Material     mat;
     private Vector3      resolutionOffset;
 
-    public Texture2D Top;
-    public Texture2D Side;
-    public Texture2D Front;
-    
+    public Texture2D SpriteXYZ;
+
     List<string>                surfacePoints = new();
     Dictionary<string, Surface> Surfaces      = new();
     
@@ -410,10 +412,11 @@ public class Trixel : MonoBehaviour {
     private Mesh         _mesh;
     
     void Awake() {
-        Collider     = this.AddComponent<MeshCollider>();
-        _mf          = this.AddComponent<MeshFilter>();
-        _mr          = this.AddComponent<MeshRenderer>();
-        _mr.material = mat;
+        Collider                 = this.AddComponent<MeshCollider>();
+        _mf                      = this.AddComponent<MeshFilter>();
+        _mr                      = this.AddComponent<MeshRenderer>();
+        _mr.material             = mat;
+        _mr.material.mainTexture = SpriteXYZ;
         Init();
     }
 
@@ -1005,42 +1008,51 @@ public class Trixel : MonoBehaviour {
         }
     }
 
-    void CarveOnAxis(Vector3 axis, Color[] pixels) {
-        for(int i = 0; i < pixels.Length; i++) {
-            Color pixel = pixels[i];
-            int   x     = i % Resolution;
-            int   y     = i / Resolution;
-            if (pixel.a == 0) {
-                for (int u = 0; u < Resolution; u++) {
-                    Vector3 step = Vector3.zero;
-                    if (axis == Vector3.down || axis == Vector3.up) {
-                        step = new Vector3(x, u, y);
-                    } else if (axis == Vector3.left || axis == Vector3.right) {
-                        step = new Vector3(u, x, y);
-                    } else if (axis == Vector3.forward || axis == Vector3.back) {
-                        step = new Vector3(x, y, u);
-                    }
-                    Vector3 v = step - resolutionOffset;
-                    if (_points.ContainsAndActive(v)) {
-                        _points[v.Key()].Active = false;
-                    }
-                }
+    void CarveOnAxis(string uPos, int x, int y) {
+        for (int u = 0; u < Resolution; u++) {
+            Vector3 step = Vector3.zero;
+
+            if (uPos == "X") {
+                step = new Vector3(u, x, y);
+            } else if (uPos == "Y") {
+                step = new Vector3(y, u, x);
+            }
+            else if (uPos == "Z") {
+                step = new Vector3(y, x, u);
+            }
+            
+            Vector3 v = step - resolutionOffset;
+            if (_points.ContainsAndActive(v)) {
+                _points[v.Key()].Active = false;
+            }
+        }
+    }
+
+    void CarveByTexture(Color[] pixels, int spriteNo, int resolution) {
+        for(int i = 0; i < pixels.Length/spriteNo; i++) {
+            var x = (i / 16); // row
+            var y = (i % 16); // col
+            
+            // top
+            if (pixels[((16*3 * x + y) % pixels.Length)].a == 0) {
+                CarveOnAxis("Y", x, y);
+            }
+            // side
+            if (pixels[((16*3 * x + y) % pixels.Length) + resolution].a == 0) {
+                CarveOnAxis("X", x, y);
+            }
+            // front
+            if (pixels[((16*3 * x + y) % pixels.Length) + resolution*2].a == 0) {
+               CarveOnAxis("Z", x, y);
             }
         }
     }
     
+    
     public void Carve() {
-        // if (_points == null ||_points.EmpyOrNull()) {
-        //     Debug.LogError($"Points are null or empty");
-        //     return;
-        // }
-       
-        var topPixels = Top.GetPixels();
-        
-        CarveOnAxis(Vector3.down, Top.GetPixels());
-        CarveOnAxis(Vector3.right, Side.GetPixels());
-        CarveOnAxis(Vector3.forward, Front.GetPixels());
-        
+        // var pixels     = ;
+        var currentRow = "";
+        CarveByTexture(SpriteXYZ.GetPixels(), 3, Resolution);
         StartCoroutine(LittleBabysMarchingCubes());
         Debug.Log("Carving");
     }

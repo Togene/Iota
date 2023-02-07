@@ -62,11 +62,13 @@ Shader "Unlit/Trixel"
                 if (uvY < 1) {
                     color = tex2D(_MainTexX, float2(i.uv.x/3, uvY));
                 } else if (uvY > 1 && uvY < 2) {
-                    color = tex2D(_MainTexX, float2(0, -1) + float2(i.uv.x/3, uvY));
+                    color = tex2D(_MainTexX, float2(1.0/3.0, -1) + float2(i.uv.x/3, uvY));
                 } else {
-                    color =  tex2D(_MainTexX, float2(0, -2) + float2(i.uv.x/3, uvY));;
+                    color = tex2D(_MainTexX, float2((1.0/3.0)*2, -2) + float2(i.uv.x/3, uvY));;
                 }
-
+                if (color.a <= 0){
+                    discard;
+                }
                 half3 worldNormal = normalize(i.worldNormal * facing);
                 
                 fixed ndotl = saturate(dot(worldNormal, normalize(_WorldSpaceLightPos0.xyz)));
