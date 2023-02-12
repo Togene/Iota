@@ -368,7 +368,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 0
-  orthographic size: 5
+  orthographic size: 15
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -468,4 +468,4 @@ MonoBehaviour:
   Resolution: 16
   RenderSpeed: 0
   mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}
-  SpriteXYZ: {fileID: 2800000, guid: 58b16adad879a49f78908e321cb224f3, type: 3}
+  SpriteXYZ: {fileID: 2800000, guid: 2cb81fff6954141d2b4eb2de5d3dc4c2, type: 3}

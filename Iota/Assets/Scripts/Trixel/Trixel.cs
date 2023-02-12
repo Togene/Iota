@@ -845,7 +845,7 @@ public class Trixel : MonoBehaviour {
 
     Vector2 GenerateUV(Vertex v, Vector3 dir) {
         var lastVert = (v.Vertice+resolutionOffset/Resolution) / Resolution;
-        // print($"{lastVert}");
+      
         if (dir == Vector3.up || dir == Vector3.down) {
             return new Vector2(lastVert.x, lastVert.z/3 + 0) + new Vector2(0.5f, 0.5f/3);
         } 
