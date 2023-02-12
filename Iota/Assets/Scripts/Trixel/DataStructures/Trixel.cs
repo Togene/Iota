@@ -15,11 +15,13 @@ public class Trixel {
     Dictionary<string, Surface> Surfaces      = new();
 
     private int Resolution;
+    private Vector3 Position;
     // void Awake() {
     //     Init();
     // }
 
-    public Trixel(int r) {
+    public Trixel(Vector3 p, int r) {
+        Position   = p;
         Resolution = r;
     }
     
@@ -33,55 +35,14 @@ public class Trixel {
         for (int x = 0; x < Resolution; x++) {
             for (int y = 0; y < Resolution; y++) {
                 for (int z = 0; z < Resolution; z++) {
-                    Vector3 newPosition = new Vector3(x, y, z) - resolutionOffset;
-                    _points.Add(newPosition);
+                    _points.Add((new Vector3(x, y, z) - resolutionOffset) + Position);
                 }
             }
         }
         // StartCoroutine();
         // LittleBabysMarchingCubes()
     }
-
-    public bool SurfaceContains(string pKey) {
-        var p = _points[pKey];
-        return Surfaces.ContainsKey(p.Position.ExtractY(0)) ||
-               Surfaces.ContainsKey(p.Position.ExtractY(1)) ||
-               Surfaces.ContainsKey(p.Position.ExtractZ(2)) ||
-               Surfaces.ContainsKey(p.Position.ExtractZ(3)) ||
-               Surfaces.ContainsKey(p.Position.ExtractX(4)) ||
-               Surfaces.ContainsKey(p.Position.ExtractX(5));
-    }
     
-    public string GetSurfaceKey(string pKey) {
-        var p = _points[pKey];
-        
-        if (Surfaces.ContainsKey(p.Position.ExtractY(0)))
-        {
-            return p.Position.ExtractY(0);
-        }
-        if (Surfaces.ContainsKey(p.Position.ExtractY(1)))
-        {
-            return p.Position.ExtractY(1);
-        }
-        
-        if (Surfaces.ContainsKey(p.Position.ExtractZ(2))) {
-            return p.Position.ExtractZ(2);
-        }
-        if (Surfaces.ContainsKey(p.Position.ExtractZ(3)))
-        {
-            return p.Position.ExtractZ(3);
-        }
-        
-        if (Surfaces.ContainsKey(p.Position.ExtractX(4))) {
-            return p.Position.ExtractX(4);
-        }
-        if (Surfaces.ContainsKey(p.Position.ExtractX(5)))
-        {
-            return p.Position.ExtractX(5);
-        }
-        return "";
-    }
-
     public void AddNullPoint(string s) {
         NullPoints.Add(s);
     }
@@ -230,7 +191,7 @@ public class Trixel {
     }
 
     Vector2 GenerateUV(Vertex v, Vector3 dir) {
-        var lastVert = (v.Vertice+resolutionOffset/Resolution) / Resolution;
+        var lastVert = (((v.Vertice - Position)+resolutionOffset/Resolution) / Resolution);
       
         if (dir == Vector3.up || dir == Vector3.down) {
             return new Vector2(lastVert.x, lastVert.z/3 + 0) + new Vector2(0.5f, 0.5f/3);
@@ -340,6 +301,7 @@ public class Trixel {
         _mesh.normals   = normals.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
+        _mesh.RecalculateTangents();
         _mesh.uv   = cleanedUVs.ToArray();
         _mesh.name = "new face";
         //yield return null;
@@ -397,7 +359,7 @@ public class Trixel {
     public void OnDrawGizmos() {
         Gizmos.color = new Color(1,1,1,1f);
         Gizmos.DrawWireCube(
-            Vector3.zero - resolutionOffset/Resolution, (Vector3.one* Resolution));
+            Position - resolutionOffset/Resolution, (Vector3.one* Resolution));
         
         // if (_points == null || _points.GetList() == null || _points.GetList().Count == 0) {
         //     return;

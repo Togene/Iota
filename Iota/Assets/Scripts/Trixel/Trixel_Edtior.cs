@@ -6,6 +6,9 @@ using UnityEngine;
 public class Trixel_Edtior : MonoBehaviour {
     [Range(2, 16)]       public int          Resolution;
     [Range(0.0f, 16.0f)] public float        RenderSpeed;
+    [Range(0, 16)]       public int          InitTrixelNo;
+    private                     List<Trixel> Trixels = new List<Trixel>();
+    
     public                      Texture2D    SpriteXYZ;
     public                      Material     mat;
     public                      Trixel       ActiveTrixel;
@@ -23,19 +26,36 @@ public class Trixel_Edtior : MonoBehaviour {
         _mr                      = this.AddComponent<MeshRenderer>();
         _mr.material             = mat;
         _mr.material.mainTexture = SpriteXYZ;
+
+        for (int i = 0; i < InitTrixelNo; i++) {
+            Trixels.Add(new Trixel(Vector3.right*i, Resolution));
+        }
+        
         Init();
     }
     
     void Init() {
-        ActiveTrixel = new Trixel(Resolution);
+        ActiveTrixel = new Trixel(Vector3.zero, Resolution);
         _mf.mesh     = new Mesh();
         ActiveTrixel.Init();
+        
+        foreach (var t in Trixels) {
+            t.Init();
+        }
+        
+        
         StartCoroutine(LittleBabysMarchingCubes());
     }
 
     IEnumerator LittleBabysMarchingCubes() {
         _mf.mesh = new Mesh();
         _mesh    = new Mesh();
+        
+        foreach (var t in Trixels) {
+            t.Init();
+        }
+
+        
         ActiveTrixel.LittleBabysMarchingCubes(ref _mesh);
         
         _mf.mesh       = _mesh;
