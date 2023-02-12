@@ -1,22 +1,47 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 
-public class Segment {
-    private Vector3 A, B;
+// https://www.theappguruz.com/blog/simple-cube-mesh-generation-unity3d
+public static class Helpers {
+    
+    public static Vector3[] ToVector3Array(this Vertex[] v) {
+        return Array.ConvertAll(v, item => (Vector3)item);;
+    }
+    public static Vector3[] ToVector3Array(this List<Vertex> v) {
+        return v.Select(x=>x.Vertice).ToArray();
+    }
+    public static string ExtractY(this Vector3 v, int surfaceID) {
+        var y = v.y;
+        if (y == 0) {
+            y = -99;
+        }
+        return $"{new Vector3(0, y, 0).ToString()}{surfaceID}";
+    }
+    public static string ExtractX(this Vector3 v, int surfaceID) {
+        var x = v.x;
+        if (x == 0) {
+            x = -99;
+        }
+        return $"{new Vector3(x, 0, 0).ToString()}{surfaceID}";
+    }
+    public static string ExtractZ(this Vector3 v, int surfaceID) {
+        var z = v.z;
+        if (z == 0) {
+            z = -99;
+        }
+        return $"{new Vector3(0, 0, z).ToString()}{surfaceID}";
+    }
 
-    public Segment(Vector3 a, Vector3 b) {
-        A = a;
-        B = b;
+    public static string ColorToString(this Color p) {
+        return $"<color=#{p.ToHexString()}>█</color>";
     }
     
-}
-
-public static class Helpers {
-
     public static string Key(this Vector3 v) {
         return VectorKey(v, Vector3.zero);
     }
