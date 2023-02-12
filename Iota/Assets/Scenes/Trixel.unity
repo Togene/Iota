@@ -226,8 +226,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1213460551}
+  - component: {fileID: 1213460552}
   m_Layer: 0
-  m_Name: Trixel_Editor
+  m_Name: Trixel_Manager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -248,6 +249,18 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1213460552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1213460550}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e4a00b1122e841de95c36a535398cae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1970301169
 GameObject:
   m_ObjectHideFlags: 0
@@ -395,10 +408,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 2129877299}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7af2abb0673974295bd16df72f9b1149, type: 3}
+  m_Script: {fileID: 11500000, guid: ef26fccfba57a43ab99b6cf816fb27c2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   Resolution: 16
   RenderSpeed: 0
-  mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}
   SpriteXYZ: {fileID: 2800000, guid: 2cb81fff6954141d2b4eb2de5d3dc4c2, type: 3}
+  mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}

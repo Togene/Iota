@@ -6,42 +6,28 @@ using Unity.VisualScripting;
 using UnityEngine;
 using Input = UnityEngine.Input;
 
-public class Trixel : MonoBehaviour {
-    [Range(2, 16)] public int                       Resolution;
-    [Range(0.0f, 16.0f)] public float               RenderSpeed;
-    
-    List<string>          NullPoints = new();
-    private Points       _points;
-    private List<int>    Indices = new();
-    private MeshCollider Collider;
-    private Vector3      _direction, _hitPoint, _head;
-    public  Material     mat;
-    private Vector3      resolutionOffset;
-
-    public Texture2D SpriteXYZ;
-
+public class Trixel {
+    List<string>      NullPoints = new();
+    public  Points    _points;
+    private List<int> Indices = new();
+    private Vector3   resolutionOffset;
     List<string>                surfacePoints = new();
     Dictionary<string, Surface> Surfaces      = new();
-    
-    // Mesh Junk
-    private MeshFilter   _mf;
-    private MeshRenderer _mr;
-    private Mesh         _mesh;
-    
-    void Awake() {
-        Collider                 = this.AddComponent<MeshCollider>();
-        _mf                      = this.AddComponent<MeshFilter>();
-        _mr                      = this.AddComponent<MeshRenderer>();
-        _mr.material             = mat;
-        _mr.material.mainTexture = SpriteXYZ;
-        Init();
-    }
 
-    void Init() {
-        _direction       = new Vector3();
+    private int Resolution;
+    // void Awake() {
+    //     Init();
+    // }
+
+    public Trixel(int r) {
+        Resolution = r;
+    }
+    
+    public void Init() {
+        // _direction       = new Vector3();
         _points          = new Points();
         resolutionOffset = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
-        _mf.mesh         = new Mesh();
+      
         NullPoints       = new List<string>();
         
         for (int x = 0; x < Resolution; x++) {
@@ -52,7 +38,8 @@ public class Trixel : MonoBehaviour {
                 }
             }
         }
-        StartCoroutine(LittleBabysMarchingCubes());
+        // StartCoroutine();
+        // LittleBabysMarchingCubes()
     }
 
     public bool SurfaceContains(string pKey) {
@@ -95,6 +82,14 @@ public class Trixel : MonoBehaviour {
         return "";
     }
 
+    public void AddNullPoint(string s) {
+        NullPoints.Add(s);
+    }
+    
+    public void RemoveNullPoint(string s) {
+        NullPoints.Remove(s);
+    }
+    
     public void NewSurface(string pKey, bool addPoints) {
         var p = _points[pKey];
         
@@ -249,14 +244,12 @@ public class Trixel : MonoBehaviour {
         return Vector2.one;
     }
     
-    IEnumerator LittleBabysMarchingCubes() {
+    public void LittleBabysMarchingCubes(ref Mesh _mesh) {
         Helpers.ClearConsole();
         
-        _mf.mesh       = new Mesh();
-        
         _points.VerticesKeyMap = new Dictionary<string, Vertex>();
-        Indices          = new ();
-        _mesh            = new Mesh();
+        Indices                = new ();
+        
 
         _points.ClearCheck();
         
@@ -265,7 +258,7 @@ public class Trixel : MonoBehaviour {
 
         // faces.Sort((a, b) => a.size.CompareTo(b.size));
         // var vertices = _points.VerticesIndexMap.Values.ToArray();
-        print($"# of faces {faces.Count}");
+        Debug.Log($"# of faces {faces.Count}");
 
         var cleanedVertices = new List<Vertex>();
         var cleanedUVs      = new List<Vector2>();
@@ -340,62 +333,16 @@ public class Trixel : MonoBehaviour {
             }
         }
         
-        print($"vertices: {cleanedVertices.Count}");
+        Debug.Log($"vertices: {cleanedVertices.Count}");
         
         _mesh.vertices  = cleanedVertices.ToVector3Array(); 
         _mesh.triangles = Indices.ToArray();
         _mesh.normals   = normals.ToArray();
         _mesh.RecalculateBounds();
         _mesh.RecalculateNormals();
-        _mesh.uv = cleanedUVs.ToArray();
-        Collider.sharedMesh = _mesh;
-        
+        _mesh.uv   = cleanedUVs.ToArray();
         _mesh.name = "new face";
-        _mf.mesh   = _mesh;
-        
-        yield return null;
-    }
-
-    bool MouseSelect() {
-        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hit)) {
-            _direction = hit.normal;
-            // snap to plane WxH and distance based on normal/facing direction
-            // if we snap on all axis's the hit point hovers above the hit point
-            _hitPoint = new Vector3(
-                (_direction.x != 0) ? hit.point.x : Mathf.Round(hit.point.x),
-                (_direction.y != 0) ? hit.point.y : Mathf.Round(hit.point.y),
-                (_direction.z != 0) ? hit.point.z : Mathf.Round(hit.point.z));
-            return true;
-        }
-        return false;
-    }
-    
-    void Start() {
-    }
-
-    // Update is called once per frame
-    void Update() {
-        if (MouseSelect()) {
-            // creating null point
-            if (Input.GetMouseButtonDown(0) && _points.Contains(_hitPoint - _direction/2)) {
-                _points.SetPointsActive(_hitPoint - _direction/2, false);
-                NullPoints.Add((_hitPoint - _direction/2).Key());
-                StartCoroutine(LittleBabysMarchingCubes());
-            }
-            
-            // removing null point
-            if (Input.GetMouseButtonDown(1) && _points.Contains(_hitPoint + _direction/2)) {
-                _points.SetPointsActive(_hitPoint + _direction/2, true);
-                NullPoints.Remove((_hitPoint + _direction/2).Key());
-                
-                StartCoroutine(LittleBabysMarchingCubes());
-            }
-        }
-        
-        if (Input.GetKeyDown(KeyCode.P)) {
-            Helpers.ClearConsole();
-            Init();
-        }
+        //yield return null;
     }
 
     void CarveOnAxis(string uPos, int x, int y) {
@@ -440,24 +387,24 @@ public class Trixel : MonoBehaviour {
     
     
     public void Carve() {
-        // var pixels     = ;
-        var currentRow = "";
-        CarveByTexture(SpriteXYZ.GetPixels(), 3, Resolution);
-        StartCoroutine(LittleBabysMarchingCubes());
+        // // var pixels     = ;
+        // var currentRow = "";
+        // CarveByTexture(SpriteXYZ.GetPixels(), 3, Resolution);
+        // StartCoroutine(LittleBabysMarchingCubes());
         Debug.Log("Carving");
     }
     
-    private void OnDrawGizmos() {
+    public void OnDrawGizmos() {
+        Gizmos.color = new Color(1,1,1,1f);
+        Gizmos.DrawWireCube(
+            Vector3.zero - resolutionOffset/Resolution, (Vector3.one* Resolution));
+        
         // if (_points == null || _points.GetList() == null || _points.GetList().Count == 0) {
         //     return;
         // }
         //
-        if (isActiveAndEnabled) {
-            Gizmos.color = new Color(1,1,1,1f);
-            Gizmos.DrawWireCube(
-                Vector3.zero - resolutionOffset/Resolution, (Vector3.one* Resolution));
-        }
-        // Gizmos.color = new Color(1,1,1,.1f);
+        
+        // Gizmos.color = new Color(1,1,1,.1f);````
         // foreach (var p in _points.GetList()) {
         //     if (p.Value.Active) {
         //         // Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
