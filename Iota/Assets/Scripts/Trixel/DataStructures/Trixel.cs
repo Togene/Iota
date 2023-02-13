@@ -15,7 +15,7 @@ public class Trixel {
     Dictionary<string, Surface> Surfaces      = new();
 
     private int Resolution;
-    private Vector3 Position;
+    public Vector3 Position;
     // void Awake() {
     //     Init();
     // }
@@ -205,13 +205,11 @@ public class Trixel {
         return Vector2.one;
     }
     
-    public void LittleBabysMarchingCubes(ref Mesh _mesh) {
+    public TrixelData LittleBabysMarchingCubes() {
         Helpers.ClearConsole();
-        
+        // var mesh                = new Mesh();
         _points.VerticesKeyMap = new Dictionary<string, Vertex>();
         Indices                = new ();
-        
-
         _points.ClearCheck();
         
         var   faces = new List<Face>();
@@ -295,16 +293,13 @@ public class Trixel {
         }
         
         Debug.Log($"vertices: {cleanedVertices.Count}");
-        
-        _mesh.vertices  = cleanedVertices.ToVector3Array(); 
-        _mesh.triangles = Indices.ToArray();
-        _mesh.normals   = normals.ToArray();
-        _mesh.RecalculateBounds();
-        _mesh.RecalculateNormals();
-        _mesh.RecalculateTangents();
-        _mesh.uv   = cleanedUVs.ToArray();
-        _mesh.name = "new face";
-        //yield return null;
+
+        return new TrixelData(
+            cleanedVertices.ToVector3Array(),
+            Indices.ToArray(),
+            normals.ToArray(),
+            cleanedUVs.ToArray()
+        );
     }
 
     void CarveOnAxis(string uPos, int x, int y) {

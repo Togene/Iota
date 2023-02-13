@@ -378,7 +378,7 @@ GameObject:
   - component: {fileID: 2129877301}
   - component: {fileID: 2129877302}
   m_Layer: 0
-  m_Name: Trixel
+  m_Name: Trixel_Editor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -413,5 +413,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Resolution: 16
   RenderSpeed: 0
+  InitTrixelNo: 12
   SpriteXYZ: {fileID: 2800000, guid: 2cb81fff6954141d2b4eb2de5d3dc4c2, type: 3}
   mat: {fileID: 2100000, guid: 1de48ceb88d97401f87893d98e0aed24, type: 2}
