@@ -1,119 +1,68 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public struct TrixelData {
-    public Vector3[] v;
-    public int[]     i;
-    public Vector3[] n;
-    public Vector2[] uv;
 
-    public TrixelData(Vector3[] _v, int[] _i, Vector3[] _n, Vector2[] _uv) {
-        v  = _v;
-        i  = _i;
-        n  = _n;
-        uv = _uv;
+public class TrixelBlock {
+    private int ID;
+    
+    private TrixelData Data; 
+    private Trixels    _trixels;
+
+    private Texture      t;
+    private MeshRenderer _mr;
+    private Mesh         _mesh;
+    private Vector3      Position;
+    public TrixelBlock(Vector3 p, Texture _t) {
+        ID       = GetHashCode();
+        Position = p;
+        t        = _t;
+        _mesh    = new Mesh();
+        _trixels = new Trixels(16);
+        _trixels.Init();
+    }
+
+    public Mesh Renderer() {
+        Debug.Log($"id: {ID}");
+        Data            = _trixels.LittleBabysMarchingCubes();
+        
+        _mesh.vertices  = Data.v;
+        _mesh.triangles = Data.i;
+        _mesh.normals   = Data.n;
+        _mesh.uv        = Data.uv;
+        
+        return _mesh;
+    }
+
+    public void OnDrawGizmos() {
+        _trixels.OnDrawGizmos();
     }
 }
 
 public class Trixel_Edtior : MonoBehaviour {
-    [Range(2, 16)]       public int          Resolution;
-    [Range(0.0f, 16.0f)] public float        RenderSpeed;
-    [Range(0, 16)]       public int          InitTrixelNo;
+    public                      Texture2D SpriteXYZ;
+    private                     Vector3   _direction, _hitPoint, _head;
+    [Range(0.0f, 16.0f)] public float     RenderSpeed;
     
-    private Dictionary<string, TrixelData> blockList = new ();
-    private Dictionary<string, Trixel>     TrixelsIndexMap   = new();
-    private string[]                       TrixelKeys;
+    private TrixelBlock _selectedBlock;
+
+    private MeshRenderer mr;
+    private MeshFilter   mf;
     
-    public                      Texture2D    SpriteXYZ;
-    public                      Material     mat;
-    public                      Trixel       SelectedTrixel;
-    private                     MeshCollider Collider;
-    private                     Vector3      _direction, _hitPoint, _head;
+    
+    private void Awake() {
+        mr = GetComponent<MeshRenderer>();
+        mf = GetComponent<MeshFilter>();
+        
+        mr.material             = new Material((Shader.Find("Unlit/Trixel")));
+        mr.material.SetTexture("_MainTexX", SpriteXYZ);
+    }
     
     // Mesh Junk
-    private MeshFilter   _mf;
-    private MeshRenderer _mr;
-    private Mesh         _mesh;
-
-    void Awake() {
-         _mf          = this.AddComponent<MeshFilter>();
-         _mr          = this.AddComponent<MeshRenderer>();
-         _mr.material = mat;
-         Collider     = this.AddComponent<MeshCollider>();
-         
-        Init();
-    }
-    
-    void Init() {
-        for (int i = 0; i < InitTrixelNo; i++) {
-            var pos = (Vector3.right * i) *Resolution;
-            var t   = new Trixel(pos, Resolution);
-            t.Init();
-            TrixelsIndexMap.Add(pos.Key(), t);
-            TrixelKeys = TrixelsIndexMap.Keys.ToArray();
-        }
-        //SelectedTrixel = Trixels[1];
-        StartCoroutine(LittleBabysMarchingCubes());
-    }
-
-    IEnumerator LittleBabysMarchingCubes() {
-        _mesh = new Mesh();
-        
-        List<Vector3> v = new List<Vector3>();
-        List<int>     i = new List<int>();
-        List<Vector3> n = new List<Vector3>();
-        List<Vector2> uv = new List<Vector2>();
-        
-        for (int t = 0; t < TrixelKeys.Length; t++) {
-            var data = new TrixelData();
-            if (!blockList.ContainsKey("0")) {
-                data = TrixelsIndexMap[TrixelKeys[t]].LittleBabysMarchingCubes();
-                blockList.Add("0", data);
-            }
-            else {
-                data = blockList["0"];
-            }
-           
-            var vertices = data.v.Clone() as Vector3[];
-            var indices  = data.i.Clone() as int[];
-           
-            for (int x = 0; x < indices.Length; x++) {
-                indices[x] += v.Count;
-            }
-            for (int x = 0; x < vertices.Length; x++) {
-                vertices[x] += TrixelsIndexMap[TrixelKeys[t]].Position;
-            }
-            v.AddRange(vertices);
-            
-            i.AddRange(indices);
-            n.AddRange(data.n);
-            uv.AddRange(data.uv);
-        }
-        
-        _mesh.vertices  = v.ToArray(); 
-        _mesh.triangles = i.ToArray();
-        _mesh.normals   = n.ToArray();
-        
-        // todo: cry, then merge uv's
-        _mesh.uv    =    uv.ToArray();
-        
-        _mesh.RecalculateBounds();
-        _mesh.RecalculateNormals();
-        _mesh.RecalculateTangents();
-      
-        _mesh.name           = "new face"; 
-        _mf.mesh = _mesh;
-        Collider.sharedMesh = _mesh;
-         
-        yield return null;
-    }
-
     bool MouseSelect() {
         if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hit)) {
-
             _direction = hit.normal;
             // snap to plane WxH and distance based on normal/facing direction
             // if we snap on all axis's the hit point hovers above the hit point
@@ -121,58 +70,48 @@ public class Trixel_Edtior : MonoBehaviour {
                 (_direction.x != 0) ? hit.point.x : Mathf.Round(hit.point.x),
                 (_direction.y != 0) ? hit.point.y : Mathf.Round(hit.point.y),
                 (_direction.z != 0) ? hit.point.z : Mathf.Round(hit.point.z));
-            
-            var trixelGrid = new Vector3(
-                Resolution * Mathf.Round(hit.point.x / Resolution),
-                Resolution * Mathf.Round(hit.point.y / Resolution),
-                Resolution * Mathf.Round(hit.point.z / Resolution));
-                print($"{trixelGrid}");
-                
-            if (TrixelsIndexMap.ContainsKey(trixelGrid.Key())) {
-                SelectedTrixel = TrixelsIndexMap[trixelGrid.Key()];
-                print($"eh?");
-            }
-            else {
-                SelectedTrixel = null;
-            }
 
             return true;
         }
         return false;
     }
-    
+
     // Start is called before the first frame update
-    void Start()
-    {
-        
+    void Start() {
+        _selectedBlock          = new TrixelBlock(Vector3.zero, SpriteXYZ);
+        mf.mesh                 = _selectedBlock.Renderer();
     }
 
     // Update is called once per frame
     void Update() {
-        if (MouseSelect() && SelectedTrixel != null) {
-            // creating null point
-            if (Input.GetMouseButtonDown(0) && SelectedTrixel._points.Contains(_hitPoint - _direction/2)) {
-                SelectedTrixel._points.SetPointsActive(_hitPoint - _direction/2, false);
-                SelectedTrixel.AddNullPoint((_hitPoint - _direction/2).Key());
-                StartCoroutine(LittleBabysMarchingCubes());
-            }
-
-            // removing null point
-            if (Input.GetMouseButtonDown(1) && SelectedTrixel._points.Contains(_hitPoint + _direction/2)) {
-                SelectedTrixel._points.SetPointsActive(_hitPoint + _direction/2, true);
-                SelectedTrixel.RemoveNullPoint((_hitPoint + _direction/2).Key());
-                StartCoroutine(LittleBabysMarchingCubes());
-            }
-        }
+        // if (MouseSelect() && _selectedTrixels != null) {
+        //     // creating null point
+        //     if (Input.GetMouseButtonDown(0) && _selectedTrixels._points.Contains(_hitPoint - _direction/2)) {
+        //         _selectedTrixels._points.SetPointsActive(_hitPoint - _direction/2, false);
+        //         _selectedTrixels.AddNullPoint((_hitPoint - _direction/2).Key());
+        //         _selectedTrixels.LittleBabysMarchingCubes();
+        //     }
+        //
+        //     // removing null point
+        //     if (Input.GetMouseButtonDown(1) && _selectedTrixels._points.Contains(_hitPoint + _direction/2)) {
+        //         _selectedTrixels._points.SetPointsActive(_hitPoint + _direction/2, true);
+        //         _selectedTrixels.RemoveNullPoint((_hitPoint + _direction/2).Key());
+        //         _selectedTrixels.LittleBabysMarchingCubes();
+        //     }
+        // }
         
         if (Input.GetKeyDown(KeyCode.P)) {
             Helpers.ClearConsole();
-            Init();
+            // Init();
         }
     }
 
+    public void SetActiveTrixel(Trixels t) {
+        // _selectedTrixels = t;
+    }
+    
     private void OnDrawGizmos() {
-        if (SelectedTrixel != null)
-            SelectedTrixel.OnDrawGizmos();
+        if (_selectedBlock != null)
+            _selectedBlock.OnDrawGizmos();
     }
 }

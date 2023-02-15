@@ -2,11 +2,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Unity.VisualScripting;
 using UnityEngine;
 using Input = UnityEngine.Input;
+using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
-public class Trixel {
+
+
+public class Trixels {
     List<string>      NullPoints = new();
     public  Points    _points;
     private List<int> Indices = new();
@@ -15,32 +20,30 @@ public class Trixel {
     Dictionary<string, Surface> Surfaces      = new();
 
     private int Resolution;
-    public Vector3 Position;
+    // public Vector3 Position;
+    
+    
     // void Awake() {
     //     Init();
     // }
 
-    public Trixel(Vector3 p, int r) {
-        Position   = p;
+    public Trixels(int r) {
         Resolution = r;
+        Init();
     }
     
     public void Init() {
-        // _direction       = new Vector3();
-        _points          = new Points();
-        resolutionOffset = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
-      
-        NullPoints       = new List<string>();
+        _points    = new Points();
+        NullPoints = new List<string>();
         
+        resolutionOffset = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
         for (int x = 0; x < Resolution; x++) {
             for (int y = 0; y < Resolution; y++) {
                 for (int z = 0; z < Resolution; z++) {
-                    _points.Add((new Vector3(x, y, z) - resolutionOffset) + Position);
+                    _points.Add((new Vector3(x, y, z) - resolutionOffset));
                 }
             }
         }
-        // StartCoroutine();
-        // LittleBabysMarchingCubes()
     }
     
     public void AddNullPoint(string s) {
@@ -191,7 +194,7 @@ public class Trixel {
     }
 
     Vector2 GenerateUV(Vertex v, Vector3 dir) {
-        var lastVert = (((v.Vertice - Position)+resolutionOffset/Resolution) / Resolution);
+        var lastVert = (((v.Vertice)+resolutionOffset/Resolution) / Resolution);
       
         if (dir == Vector3.up || dir == Vector3.down) {
             return new Vector2(lastVert.x, lastVert.z/3 + 0) + new Vector2(0.5f, 0.5f/3);
@@ -352,9 +355,8 @@ public class Trixel {
     }
     
     public void OnDrawGizmos() {
-        Gizmos.color = new Color(1,1,1,1f);
-        Gizmos.DrawWireCube(
-            Position - resolutionOffset/Resolution, (Vector3.one* Resolution));
+        Gizmos.color = Color.magenta; //new Color(1,1,1,1f);
+        Gizmos.DrawWireCube(  Vector3.one/Resolution - resolutionOffset/Resolution, (Vector3.one*Resolution));
         
         // if (_points == null || _points.GetList() == null || _points.GetList().Count == 0) {
         //     return;
