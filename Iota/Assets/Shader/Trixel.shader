@@ -1,4 +1,5 @@
 // thank https://roystan.net/articles/toon-shader/
+// more tank https://roystan.net/articles/outline-shader/
 Shader "Unlit/Trixel" {
     Properties {
         _MainTex ("Texture", 2D) = "white" {}
@@ -73,18 +74,14 @@ Shader "Unlit/Trixel" {
                 float3 normal = normalize(i.worldNormal);
                 float spec = smoothstep(
                     0.005, 0.01, pow(dot(normalize(i.worldNormal), normalize(_WorldSpaceLightPos0 + viewDir)) * .99, 445));
-
-             
                 float nDotL = tex2D(_RampTexture, float2(
-                    1 - (saturate(dot(normal,
-                         normalize(_WorldSpaceLightPos0.xyz))) * 0.49 + 0.49), 0.5));
+                    1 - (saturate(dot(normal, normalize(_WorldSpaceLightPos0.xyz))) * 0.49 + 0.49), 0.5));
                 float shadow = SHADOW_ATTENUATION(i);
                 float light = smoothstep(0, 1, nDotL * shadow);
-                // 
-                
-                float rimAmount = .9;
-                float rim =smoothstep(
-                    rimAmount- 0.01, rimAmount +.01 , 1 - dot(viewDir, normalize(i.worldNormal))) * pow(nDotL, 100);
+                float rimAmount = .85;
+                float rimDot = 1 - dot(viewDir, normal);
+                float rim = rimDot * nDotL;
+                rim = smoothstep(rimAmount- 0.01, rimAmount + .01 , rim);
                 
                 return TexSliceStep(i, 3) * light + spec + rim;
             }
