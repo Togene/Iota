@@ -1,32 +1,17 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
-using Unity.VisualScripting;
 using UnityEngine;
-using Input = UnityEngine.Input;
-using Vector2 = UnityEngine.Vector2;
-using Vector3 = UnityEngine.Vector3;
-
 
 
 public class Trixels {
-    List<string>      NullPoints = new();
-    public  Points    _points;
-    private List<int> Indices = new();
-    private Vector3   resolutionOffset;
+    int                         Resolution;
+    Points                      _points;
+    Vector3                     resolutionOffset;
+    List<int>                   Indices       = new();
     List<string>                surfacePoints = new();
+    List<string>                NullPoints    = new();
     Dictionary<string, Surface> Surfaces      = new();
-
-    private int Resolution;
-    // public Vector3 Position;
     
-    
-    // void Awake() {
-    //     Init();
-    // }
-
     public Trixels(int r) {
         Resolution = r;
         Init();
@@ -44,6 +29,14 @@ public class Trixels {
                 }
             }
         }
+    }
+    
+    public void SetActive(Vector3 v, bool b) {
+        _points.SetPointsActive(v, b);
+    }
+    
+    public bool Contains(Vector3 v) {
+        return _points.Contains(v);
     }
     
     public void AddNullPoint(string s) {
@@ -166,9 +159,7 @@ public class Trixels {
         Surfaces      = new Dictionary<string, Surface>();
         
         foreach (var pair in _points.GetList()) {
-            var p = pair.Value;
-            // top and bottom
-            if (p.Active) {
+            if (pair.Value.Active) {
                 NewSurface(pair.Key, true);
             }
         }

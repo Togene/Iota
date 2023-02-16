@@ -9,7 +9,12 @@ using UnityEngine;
 
 // https://www.theappguruz.com/blog/simple-cube-mesh-generation-unity3d
 public static class Helpers {
-    
+    public static Vector3[] Transform(this Vector3[] v, Vector3 p) {
+        for(int i = 0; i < v.Length; i++){
+            v[i] += p;
+        }
+        return v;
+    }
     public static Vector3[] ToVector3Array(this Vertex[] v) {
         return Array.ConvertAll(v, item => (Vector3)item);;
     }
