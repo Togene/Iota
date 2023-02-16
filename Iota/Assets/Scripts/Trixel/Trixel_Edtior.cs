@@ -46,7 +46,8 @@ public class TrixelBlock {
         _mesh.triangles = Data.i;
         _mesh.normals   = Data.n;
         _mesh.uv        = Data.uv;
-        
+        _mesh.RecalculateTangents();
+        _mesh.RecalculateNormals();
         return _mesh;
     }
 
@@ -56,8 +57,8 @@ public class TrixelBlock {
 }
 
 public class Trixel_Edtior : MonoBehaviour {
-    public                      Texture2D SpriteXYZ;
-    private                     Vector3   _direction, _hitPoint, _head;
+    public Texture2D SpriteXYZ, RampTexture;
+  
     [Range(0.0f, 16.0f)] public float     RenderSpeed;
     
     private TrixelBlock _selectedBlock;
@@ -65,13 +66,15 @@ public class Trixel_Edtior : MonoBehaviour {
     private MeshRenderer mr;
     private MeshFilter   mf;
     private MeshCollider mc;
+    private Vector3      _direction, _hitPoint, _head;
     
     private void Awake() {
         mr          = GetComponent<MeshRenderer>();
         mf          = GetComponent<MeshFilter>();
         mc          = GetComponent<MeshCollider>();
         mr.material = new Material((Shader.Find("Unlit/Trixel")));
-        mr.material.SetTexture("_MainTexX", SpriteXYZ);
+        mr.material.SetTexture("_MainTex", SpriteXYZ);
+        mr.material.SetTexture("_RampTexture", RampTexture);
     }
     
     // Mesh Junk

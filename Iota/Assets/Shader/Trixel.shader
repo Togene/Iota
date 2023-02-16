@@ -1,116 +1,95 @@
-Shader "Unlit/Trixel"
-{
-    Properties
-    {
-        _MainTexX ("Texture", 2D) = "white" {}
+// thank https://roystan.net/articles/toon-shader/
+Shader "Unlit/Trixel" {
+    Properties {
+        _MainTex ("Texture", 2D) = "white" {}
+        _RampTexture ("Texture", 2D) = "white" {}
     }
-    SubShader
-    {
-        Tags {"LightMode"="ForwardBase"}
-        Pass
-        {
+    SubShader {
+        Pass {
+            Tags {"LightMode" = "ForwardBase" "PassFlags" = "OnlyDirectional"}
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_fwdbase
             // make fog work
             
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
-            #pragma multi_compile_fwdbase nolightmap nodirlightmap nodynlightmap novertexlight
             #include "AutoLight.cginc"
-            
-            struct appdata
-            {
+
+                       
+            struct appdata {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
-              
                 half3 normal : NORMAL;
             };
 
-            struct v2f
-            {
+            struct v2f {
                 float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
-               SHADOW_COORDS(1) // put shadows data into TEXCOORD1
-                float4 vertex : SV_POSITION;
+                half3 viewDir : TEXCOORD1;
+                float4 pos : SV_POSITION;
                 half3 worldNormal : NORMAL;
+                SHADOW_COORDS(2)
             };
 
-            sampler2D _MainTexX;
-            float4 _MainTexX_ST;
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
 
-            v2f vert (appdata v)
-            {
+            sampler2D _RampTexture;
+            float4 _RampTexture_ST;
+            
+            v2f vert (appdata v) {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                
-                o.uv = TRANSFORM_TEX(v.uv, _MainTexX);
-          
-                
+                o.pos = UnityObjectToClipPos(v.vertex);
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
-                UNITY_TRANSFER_FOG(o,o.vertex);
-                TRANSFER_SHADOW(o);
+                o.viewDir = WorldSpaceViewDir(v.vertex);
+                
+                // UNITY_TRANSFER_FOG(o,o.vertex);
+                TRANSFER_SHADOW(o) 
                 return o;
             }
 
-            fixed4 frag (v2f i, fixed facing : VFACE) : SV_Target {
-                // sample the texture
-
-                float uvY = i.uv.y*3;
-
-                float4 color = float4(1,1,1,0);
+            float4 TexSliceStep(in v2f i, int atlasSize) {
+                float4 color;
+                float uvY = i.uv.y*atlasSize;
                 if (uvY < 1) {
-                    color = tex2D(_MainTexX, float2(i.uv.x/3, uvY));
+                    color = tex2D(_MainTex, float2(i.uv.x/atlasSize, uvY));
                 } else if (uvY > 1 && uvY < 2) {
-                    color = tex2D(_MainTexX, float2(1.0/3.0, -1) + float2(i.uv.x/3, uvY));
+                    color = tex2D(_MainTex, float2(1.0/atlasSize, -1) + float2(i.uv.x/atlasSize, uvY));
                 } else {
-                    color = tex2D(_MainTexX, float2((1.0/3.0)*2, -2) + float2(i.uv.x/3, uvY));;
+                    color = tex2D(_MainTex, float2((1.0/atlasSize)* 2, -2) + float2(i.uv.x/atlasSize, uvY));;
                 }
                 if (color.a <= 0){
                     discard;
                 }
-                half3 worldNormal = normalize(i.worldNormal * facing);
+                return color;
+            }
+            
+            float4 frag (v2f i) : SV_Target {
+                // smoothstep(0, 0.01, ndotl);
+                // UNITY_APPLY_FOG(i.fogCoord, col);
+                float3 viewDir = normalize(i.viewDir);
+                float3 normal = normalize(i.worldNormal);
+                float spec = smoothstep(
+                    0.005, 0.01, pow(dot(normalize(i.worldNormal), normalize(_WorldSpaceLightPos0 + viewDir)) * .99, 445));
+
+             
+                float nDotL = tex2D(_RampTexture, float2(
+                    1 - (saturate(dot(normal,
+                         normalize(_WorldSpaceLightPos0.xyz))) * 0.49 + 0.49), 0.5));
+                float shadow = SHADOW_ATTENUATION(i);
+                float light = smoothstep(0, 1, nDotL * shadow);
+                // 
                 
-                fixed ndotl = saturate(dot(worldNormal, normalize(_WorldSpaceLightPos0.xyz)));
-                fixed3 lighting = ndotl * _LightColor0;
-                fixed shadow = SHADOW_ATTENUATION(i);
-                lighting += ShadeSH9(half4(worldNormal, 1.0));
+                float rimAmount = .9;
+                float rim =smoothstep(
+                    rimAmount- 0.01, rimAmount +.01 , 1 - dot(viewDir, normalize(i.worldNormal))) * pow(nDotL, 100);
                 
-                UNITY_APPLY_FOG(i.fogCoord, col);
-                return color * float4(lighting.rgb, 1.0) * shadow;
+                return TexSliceStep(i, 3) * light + spec + rim;
             }
             ENDCG
         }
-        // shadow caster rendering pass, implemented manually
-        // using macros from UnityCG.cginc
-        Pass
-        {
-            Tags {"LightMode"="ShadowCaster"}
-
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma multi_compile_shadowcaster
-            #include "UnityCG.cginc"
-
-            struct v2f { 
-                V2F_SHADOW_CASTER;
-            };
-
-            v2f vert(appdata_base v)
-            {
-                v2f o;
-                TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
-                return o;
-            }
-
-            float4 frag(v2f i) : SV_Target
-            {
-                SHADOW_CASTER_FRAGMENT(i)
-            }
-            ENDCG
-        }
-           // shadow casting support
         UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
     }
 }

@@ -47,7 +47,7 @@ public class Trixels {
         NullPoints.Remove(s);
     }
     
-    public void NewSurface(string pKey, bool addPoints) {
+    void NewSurface(string pKey, bool addPoints) {
         var p = _points[pKey];
         
         if (!_points.Top(p)) {
@@ -188,15 +188,13 @@ public class Trixels {
                 }
             }
         
-            var c = new Vector3(Resolution, Resolution, Resolution) * 0.5f;
             NullPoints.Sort((a, b) => 
-                Vector3.Distance(_points[a].Position + resolutionOffset, c).
-                    CompareTo(Vector3.Distance(_points[b].Position + resolutionOffset, c)));
+                Vector3.Distance(_points[a].Position + resolutionOffset, resolutionOffset).
+                    CompareTo(Vector3.Distance(_points[b].Position + resolutionOffset, resolutionOffset)));
         
             foreach (var np in NullPoints) {
                 HandleSurfaces(ref Surfaces, np);
             }
-        
             foreach (var sp in surfacePoints) {
                 HandleSurfaces(ref Surfaces, sp);
             }
@@ -207,9 +205,6 @@ public class Trixels {
                 }
             }
         }
-
-        // faces.Sort((a, b) => a.size.CompareTo(b.size));
-        // var vertices = _points.VerticesIndexMap.Values.ToArray();
         Debug.Log($"# of faces {faces.Count}");
 
         var cleanedVertices = new List<Vertex>();
@@ -231,22 +226,18 @@ public class Trixels {
             var cleanedIndices = new List<int>();
             cleanedVertices.Add(_points.VerticesKeyMap[Helpers.VectorKey(_points.Vertices[face.indices[0]].Vertice)]);
             cleanedIndices.Add(cleanedVertices.Count - 1);
-
             cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), face.Normal));
             
             cleanedVertices.Add(_points.VerticesKeyMap[Helpers.VectorKey(_points.Vertices[face.indices[1]].Vertice)]);
             cleanedIndices.Add(cleanedVertices.Count - 1);
-            
             cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), face.Normal));
             
             cleanedVertices.Add(_points.VerticesKeyMap[Helpers.VectorKey(_points.Vertices[face.indices[2]].Vertice)]);
             cleanedIndices.Add(cleanedVertices.Count - 1);
-           
             cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), face.Normal));
             
             cleanedVertices.Add(_points.VerticesKeyMap[Helpers.VectorKey(_points.Vertices[face.indices[3]].Vertice)]);
             cleanedIndices.Add(cleanedVertices.Count - 1);
-            
             cleanedUVs.Add(GenerateUV(cleanedVertices.Last(), face.Normal));
             
             face.SetIndices(cleanedIndices.ToArray());

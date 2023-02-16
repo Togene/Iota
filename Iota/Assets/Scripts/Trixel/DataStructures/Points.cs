@@ -19,18 +19,6 @@ public class Points {
         return ref PointsList;
     }
 
-    // public int ListCount() {
-    //     return VerticesKeyMap.Count;
-    // }
-    //
-    // public bool EmpyOrNull() {
-    //     return VerticesKeyMap == null || VerticesKeyMap.Count != 0;
-    // }
-    //
-    // public  List<Point> GetPointList() {
-    //     return  PointsList.Values.ToList();
-    // }
-
     public Point this[string a] {
         get { return PointsList[a]; }
         set { PointsList[a] = value; }
