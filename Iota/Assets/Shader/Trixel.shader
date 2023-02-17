@@ -4,6 +4,7 @@ Shader "Unlit/Trixel" {
     Properties {
         _MainTex ("Texture", 2D) = "white" {}
         _RampTexture ("Texture", 2D) = "white" {}
+        _NoLight ("Use Lightning", int) = 0
     }
     SubShader {
         Pass {
@@ -17,7 +18,6 @@ Shader "Unlit/Trixel" {
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
             #include "AutoLight.cginc"
-
                        
             struct appdata {
                 float4 vertex : POSITION;
@@ -38,6 +38,8 @@ Shader "Unlit/Trixel" {
 
             sampler2D _RampTexture;
             float4 _RampTexture_ST;
+
+            int _NoLight;
             
             v2f vert (appdata v) {
                 v2f o;
@@ -82,8 +84,11 @@ Shader "Unlit/Trixel" {
                 float rimDot = 1 - dot(viewDir, normal);
                 float rim = rimDot * nDotL;
                 rim = smoothstep(rimAmount- 0.01, rimAmount + .01 , rim);
-                
-                return TexSliceStep(i, 3) * light + spec + rim;
+
+                if (_NoLight == 0){
+                    return TexSliceStep(i, 3) * light + spec + rim;
+                } 
+                return TexSliceStep(i, 3);
             }
             ENDCG
         }

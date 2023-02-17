@@ -1,5 +1,8 @@
+using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
-
+using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public class TrixelBlock {
     private int ID;
@@ -21,6 +24,10 @@ public class TrixelBlock {
         _Trixels.Init();
     }
 
+    public void Init() {
+        _Trixels.Init();
+    }
+    
     public bool Contains(Vector3 v) {
         return _Trixels.Contains(v);
     }
@@ -56,9 +63,11 @@ public class TrixelBlock {
     }
 }
 
+public enum EditorModes {LOOK, PAINT, CARVE}
+
 public class Trixel_Edtior : MonoBehaviour {
     public Texture2D SpriteXYZ, RampTexture;
-  
+    
     [Range(0.0f, 16.0f)] public float     RenderSpeed;
     
     private TrixelBlock _selectedBlock;
@@ -67,14 +76,36 @@ public class Trixel_Edtior : MonoBehaviour {
     private MeshFilter   mf;
     private MeshCollider mc;
     private Vector3      _direction, _hitPoint, _head;
+
+    private Image    image;
+    private TMP_Text modeText;
+    private Canvas   ui;
+
+    public EditorModes mode = EditorModes.LOOK;
+
+    [SerializeField] private RectTransform _ColorPickerUI;
+    [SerializeField] private Texture2D     colorPicker;
+
+    [SerializeField] GameObject testObject;
     
     private void Awake() {
-        mr          = GetComponent<MeshRenderer>();
-        mf          = GetComponent<MeshFilter>();
-        mc          = GetComponent<MeshCollider>();
-        mr.material = new Material((Shader.Find("Unlit/Trixel")));
+        mr = this.AddComponent<MeshRenderer>();
+        mf = this.AddComponent<MeshFilter>();
+        mc = this.AddComponent<MeshCollider>();
+
+        mr.material  = new Material((Shader.Find("Unlit/Trixel")));
         mr.material.SetTexture("_MainTex", SpriteXYZ);
         mr.material.SetTexture("_RampTexture", RampTexture);
+        
+        ui             = GetComponentInChildren<Canvas>();
+        
+        // preview sprite UI
+        image          = ui.GetComponentInChildren<Image>();
+        image.material = new Material((Shader.Find("Unlit/Trixel")));
+        image.material.SetTexture("_MainTex", SpriteXYZ);
+        image.material.SetInt("_NoLight", 1);
+
+        modeText = ui.GetComponentInChildren<TMP_Text>();
     }
     
     // Mesh Junk
@@ -94,39 +125,92 @@ public class Trixel_Edtior : MonoBehaviour {
 
     // Start is called before the first frame update
     void Start() {
-        _selectedBlock = new TrixelBlock(Vector3.zero, SpriteXYZ);
-        mf.mesh        = _selectedBlock.Renderer();
-        mc.sharedMesh  = mf.mesh;
+        // New();
     }
 
+    void New() {
+        _selectedBlock = new TrixelBlock(Vector3.zero, SpriteXYZ);
+        RenderOut();
+    }
+    
     // Update is called once per frame
     void Update() {
+        switch (mode) {
+            case EditorModes.LOOK:
+                // ez
+                SetModeText("LOOK");
+                break;
+            case EditorModes.CARVE:
+                // hard part done-ish
+                CarveMode();
+                SetModeText("CARVE");
+                break;
+            case EditorModes.PAINT:
+                // fun times
+                SetModeText("PAINT");
+                break;
+        }
+        
+        if (Input.GetKeyDown(KeyCode.P)) {
+            Clear();
+        }
+    }
+
+    public void SetModeText(string t) {
+        modeText.text = t;
+    }
+    
+    public void Clear() {
+        Helpers.ClearConsole();
+        _selectedBlock.Init();
+        RenderOut();
+    }
+    
+    public void CarveMode() {
         if (MouseSelect() && _selectedBlock != null) {
             // creating null point
             if (Input.GetMouseButtonDown(0) && _selectedBlock.Contains(_hitPoint - _direction/2)) {
                 _selectedBlock.SetActive(_hitPoint - _direction/2, false);
                 _selectedBlock.AddNullPoint((_hitPoint - _direction/2));
-                mf.mesh       = _selectedBlock.Renderer();
-                mc.sharedMesh = mf.mesh;
+                RenderOut();
             }
         
             // removing null point
             if (Input.GetMouseButtonDown(1) && _selectedBlock.Contains(_hitPoint + _direction/2)) {
                 _selectedBlock.SetActive(_hitPoint + _direction/2, true);
                 _selectedBlock.RemoveNullPoint((_hitPoint + _direction/2));
-                mf.mesh       = _selectedBlock.Renderer();
-                mc.sharedMesh = mf.mesh;
+                RenderOut();
             }
         }
-        
-        if (Input.GetKeyDown(KeyCode.P)) {
-            Helpers.ClearConsole();
-            // Init();
-        }
     }
-
+    
     public void SetActiveTrixel(Trixels t) {
         // _selectedTrixels = t;
+    }
+
+    public void RenderOut() {
+        mf.mesh       = _selectedBlock.Renderer();
+        mc.sharedMesh = mf.mesh;
+    }
+
+    public void OnClickColor() {
+        SetColor();
+    }
+    
+     void SetColor() {
+        Vector3 imagePos   = _ColorPickerUI.position;
+        float   globalPosX = Input.mousePosition.x - imagePos.x;
+        float   globalPosY = Input.mousePosition.y - imagePos.y;
+
+        int localPosX = (int)(globalPosX * (colorPicker.width / _ColorPickerUI.rect.width));
+        int localPosY = (int)(globalPosY * (colorPicker.height / _ColorPickerUI.rect.height));
+
+        Color c = colorPicker.GetPixel(localPosX, localPosY);
+        SetActualColor(c);
+    }
+
+    void SetActualColor(Color c) {
+        testObject.GetComponent<MeshRenderer>().material.color = c;
     }
     
     private void OnDrawGizmos() {

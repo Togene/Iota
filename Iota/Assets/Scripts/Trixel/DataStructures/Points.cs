@@ -13,7 +13,6 @@ public class Points {
  public  Dictionary<string, Vertex> VerticesKeyMap = new();
     public  Vertex[]                   Vertices         = new Vertex[]{};
     private Dictionary<string, Point>  PointsList       = new();
-  
     
     public ref Dictionary<string, Point> GetList() {
         return ref PointsList;
