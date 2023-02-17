@@ -1,4 +1,5 @@
 using TMPro;
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -66,9 +67,9 @@ public class TrixelBlock {
 public enum EditorModes {LOOK, PAINT, CARVE}
 
 public class Trixel_Edtior : MonoBehaviour {
-    public Texture2D SpriteXYZ, RampTexture;
+    public Texture2D SpriteXYZ;
     
-    [Range(0.0f, 16.0f)] public float     RenderSpeed;
+    // [Range(0.0f, 16.0f)] public float     RenderSpeed;
     
     private TrixelBlock _selectedBlock;
 
@@ -87,7 +88,7 @@ public class Trixel_Edtior : MonoBehaviour {
     [SerializeField] private Texture2D     colorPicker;
 
     [SerializeField] GameObject testObject;
-    
+
     private void Awake() {
         mr = this.AddComponent<MeshRenderer>();
         mf = this.AddComponent<MeshFilter>();
@@ -95,7 +96,7 @@ public class Trixel_Edtior : MonoBehaviour {
 
         mr.material  = new Material((Shader.Find("Unlit/Trixel")));
         mr.material.SetTexture("_MainTex", SpriteXYZ);
-        mr.material.SetTexture("_RampTexture", RampTexture);
+        mr.material.SetTexture("_RampTexture", Resources.Load<Texture2D>("Shader/Textures/Ramp"));
         
         ui             = GetComponentInChildren<Canvas>();
         
@@ -106,6 +107,7 @@ public class Trixel_Edtior : MonoBehaviour {
         image.material.SetInt("_NoLight", 1);
 
         modeText = ui.GetComponentInChildren<TMP_Text>();
+        _ColorPickerUI.gameObject.SetActive(false);
     }
     
     // Mesh Junk
@@ -135,18 +137,30 @@ public class Trixel_Edtior : MonoBehaviour {
     
     // Update is called once per frame
     void Update() {
+        
+        
         switch (mode) {
             case EditorModes.LOOK:
+                if (_ColorPickerUI.gameObject.activeSelf) {
+                    _ColorPickerUI.gameObject.SetActive(false);
+                }
                 // ez
                 SetModeText("LOOK");
                 break;
             case EditorModes.CARVE:
+                if (_ColorPickerUI.gameObject.activeSelf) {
+                    _ColorPickerUI.gameObject.SetActive(false);
+                }
                 // hard part done-ish
                 CarveMode();
                 SetModeText("CARVE");
                 break;
             case EditorModes.PAINT:
                 // fun times
+                if (!_ColorPickerUI.gameObject.activeSelf) {
+                    _ColorPickerUI.gameObject.SetActive(true);
+                }
+                
                 SetModeText("PAINT");
                 break;
         }
@@ -155,7 +169,7 @@ public class Trixel_Edtior : MonoBehaviour {
             Clear();
         }
     }
-
+    
     public void SetModeText(string t) {
         modeText.text = t;
     }
@@ -214,7 +228,7 @@ public class Trixel_Edtior : MonoBehaviour {
     }
     
     private void OnDrawGizmos() {
-        if (_selectedBlock != null)
+         if (_selectedBlock != null)
             _selectedBlock.OnDrawGizmos();
     }
 }
