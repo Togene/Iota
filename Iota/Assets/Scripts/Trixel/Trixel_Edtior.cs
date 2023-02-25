@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-public class TrixelBlock {
+public class Block {
     private int ID;
     
     private TrixelData Data; 
@@ -16,7 +16,7 @@ public class TrixelBlock {
     private Mesh         _mesh;
     private Vector3      Position;
     
-    public TrixelBlock(Vector3 p, Texture _t) {
+    public Block(Vector3 p, Texture _t) {
         ID       = GetHashCode();
         Position = p;
         t        = _t;
@@ -70,8 +70,7 @@ public class Trixel_Edtior : MonoBehaviour {
     public Texture2D SpriteXYZ;
     
     // [Range(0.0f, 16.0f)] public float     RenderSpeed;
-    
-    private TrixelBlock _selectedBlock;
+    // private Block _selectedBlock;
 
     private MeshRenderer mr;
     private MeshFilter   mf;
@@ -89,6 +88,8 @@ public class Trixel_Edtior : MonoBehaviour {
 
     [SerializeField] GameObject testObject;
 
+    private TrixelBlock EditBlock;
+    
     private void Awake() {
         mr = this.AddComponent<MeshRenderer>();
         mf = this.AddComponent<MeshFilter>();
@@ -96,18 +97,20 @@ public class Trixel_Edtior : MonoBehaviour {
 
         mr.material  = new Material((Shader.Find("Unlit/Trixel")));
         mr.material.SetTexture("_MainTex", SpriteXYZ);
-        mr.material.SetTexture("_RampTexture", Resources.Load<Texture2D>("Shader/Textures/Ramp"));
+        mr.material.SetTexture("_RampTexture", 
+            Resources.Load<Texture2D>("Shader/Textures/Ramp"));
         
         ui             = GetComponentInChildren<Canvas>();
         
         // preview sprite UI
-        image          = ui.GetComponentInChildren<Image>();
-        image.material = new Material((Shader.Find("Unlit/Trixel")));
-        image.material.SetTexture("_MainTex", SpriteXYZ);
-        image.material.SetInt("_NoLight", 1);
+        // image          = ui.GetComponentInChildren<Image>();
+        // image.material = new Material((Shader.Find("Unlit/Trixel")));
+        // image.material.SetTexture("_MainTex", SpriteXYZ);
+        // image.material.SetInt("_NoLight", 1);
 
-        modeText = ui.GetComponentInChildren<TMP_Text>();
-        _ColorPickerUI.gameObject.SetActive(false);
+        // modeText  = ui.GetComponentInChildren<TMP_Text>();
+        EditBlock = new TrixelBlock(16);
+        //_ColorPickerUI.gameObject.SetActive(false);
     }
     
     // Mesh Junk
@@ -116,10 +119,16 @@ public class Trixel_Edtior : MonoBehaviour {
             _direction = hit.normal;
             // snap to plane WxH and distance based on normal/facing direction
             // if we snap on all axis's the hit point hovers above the hit point
+            var step = 16/16;
             _hitPoint = new Vector3(
-                (_direction.x != 0) ? hit.point.x : Mathf.Round(hit.point.x),
-                (_direction.y != 0) ? hit.point.y : Mathf.Round(hit.point.y),
-                (_direction.z != 0) ? hit.point.z : Mathf.Round(hit.point.z));
+                (_direction.x != 0) ? 
+                    hit.point.x : (Mathf.Round((hit.point.x - 0.5f) / step) * step) + 0.5f,
+                (_direction.y != 0) ? 
+                    hit.point.y : (Mathf.Round((hit.point.y - 0.5f) / step) * step) + 0.5f,
+                (_direction.z != 0) ? 
+                    hit.point.z : (Mathf.Round((hit.point.z - 0.5f) / step) * step) + 0.5f
+            );
+            print($"{hit.point.x}, {_hitPoint.x}");
             return true;
         }
         return false;
@@ -127,41 +136,41 @@ public class Trixel_Edtior : MonoBehaviour {
 
     // Start is called before the first frame update
     void Start() {
-        // New();
+        New();
     }
 
     void New() {
-        _selectedBlock = new TrixelBlock(Vector3.zero, SpriteXYZ);
+        // _selectedBlock = new Block(Vector3.zero, SpriteXYZ);
         RenderOut();
     }
+
+    void LateUpdate() { }
     
     // Update is called once per frame
     void Update() {
-        
-        
         switch (mode) {
             case EditorModes.LOOK:
                 if (_ColorPickerUI.gameObject.activeSelf) {
-                    _ColorPickerUI.gameObject.SetActive(false);
+                   // _ColorPickerUI.gameObject.SetActive(false);
                 }
                 // ez
-                SetModeText("LOOK");
+                // SetModeText("LOOK");
                 break;
             case EditorModes.CARVE:
                 if (_ColorPickerUI.gameObject.activeSelf) {
-                    _ColorPickerUI.gameObject.SetActive(false);
+                    //_ColorPickerUI.gameObject.SetActive(false);
                 }
                 // hard part done-ish
                 CarveMode();
-                SetModeText("CARVE");
+                // SetModeText("CARVE");
                 break;
             case EditorModes.PAINT:
                 // fun times
                 if (!_ColorPickerUI.gameObject.activeSelf) {
-                    _ColorPickerUI.gameObject.SetActive(true);
+                    //_ColorPickerUI.gameObject.SetActive(true);
                 }
                 
-                SetModeText("PAINT");
+                // SetModeText("PAINT");
                 break;
         }
         
@@ -176,34 +185,51 @@ public class Trixel_Edtior : MonoBehaviour {
     
     public void Clear() {
         Helpers.ClearConsole();
-        _selectedBlock.Init();
+        // _selectedBlock.Init();
+        EditBlock = new TrixelBlock(16);
         RenderOut();
     }
-    
+
     public void CarveMode() {
-        if (MouseSelect() && _selectedBlock != null) {
+        if (MouseSelect()) {
             // creating null point
-            if (Input.GetMouseButtonDown(0) && _selectedBlock.Contains(_hitPoint - _direction/2)) {
-                _selectedBlock.SetActive(_hitPoint - _direction/2, false);
-                _selectedBlock.AddNullPoint((_hitPoint - _direction/2));
+            if (Input.GetMouseButtonDown(0)) {
+                EditBlock.Edit(_hitPoint); // - _direction/2
                 RenderOut();
             }
         
             // removing null point
-            if (Input.GetMouseButtonDown(1) && _selectedBlock.Contains(_hitPoint + _direction/2)) {
-                _selectedBlock.SetActive(_hitPoint + _direction/2, true);
-                _selectedBlock.RemoveNullPoint((_hitPoint + _direction/2));
+            if (Input.GetMouseButtonDown(1)) {
+                EditBlock.Edit(_hitPoint); // - _direction/2
                 RenderOut();
             }
         }
     }
+    
+    // public void CarveMode() {
+    //     if (MouseSelect() && _selectedBlock != null) {
+    //         // creating null point
+    //         if (Input.GetMouseButtonDown(0) && _selectedBlock.Contains(_hitPoint - _direction/2)) {
+    //             _selectedBlock.SetActive(_hitPoint - _direction/2, false);
+    //             _selectedBlock.AddNullPoint((_hitPoint - _direction/2));
+    //             RenderOut();
+    //         }
+    //     
+    //         // removing null point
+    //         if (Input.GetMouseButtonDown(1) && _selectedBlock.Contains(_hitPoint + _direction/2)) {
+    //             _selectedBlock.SetActive(_hitPoint + _direction/2, true);
+    //             _selectedBlock.RemoveNullPoint((_hitPoint + _direction/2));
+    //             RenderOut();
+    //         }
+    //     }
+    // }
     
     public void SetActiveTrixel(Trixels t) {
         // _selectedTrixels = t;
     }
 
     public void RenderOut() {
-        mf.mesh       = _selectedBlock.Renderer();
+        mf.mesh       = EditBlock.Render();
         mc.sharedMesh = mf.mesh;
     }
 
@@ -228,7 +254,12 @@ public class Trixel_Edtior : MonoBehaviour {
     }
     
     private void OnDrawGizmos() {
-         if (_selectedBlock != null)
-            _selectedBlock.OnDrawGizmos();
+        if (EditBlock != null)
+            EditBlock.OnDrawGizmos();
+        // if (_selectedBlock != null)
+        //    _selectedBlock.OnDrawGizmos();
+        
+        Gizmos.color = Color.green;
+        Gizmos.DrawRay(_hitPoint, _direction);
     }
 }

@@ -44,7 +44,6 @@ public class Points {
     
     int AddVertice(Vertex v, bool real, int type) {
         if (!VerticesKeyMap.ContainsKey(v.Key)) {
-            
             v.Virtual = !real;
             v.Type    = type;
             
@@ -85,7 +84,6 @@ public class Points {
                 VerticeCondition(!BackLeft(p), !Left(p), !Back(p)), 7));
             return caseIndex; 
     }
-
     
     public bool ActiveByCheckType(int i, Vector3 v) {
         switch (i) {
@@ -106,47 +104,47 @@ public class Points {
         }
     }
     
-       bool MergePoints(ref Face vp, ref Face vp1) {
-            var TL1 = vp.indices[0];
-            var TR1 = vp.indices[1];
-            var BR1 = vp.indices[2];
-            var BL1 = vp.indices[3];
-                     
-            var TL2 = vp1.indices[0];
-            var TR2 = vp1.indices[1];
-            var BR2 = vp1.indices[2];
-            var BL2 = vp1.indices[3];
-            
-            bool connected = false;
-
-            // vp1 on bottom        
-            if (BL1 == TL2 && BR1 == TR2) {
-                vp.indices[2] = BR2;        
-                vp.indices[3] = BL2;
-                connected                        = true;
-            }
-            // vp1 on top
-            if (TL1 == BL2 && TR1 == BR2) {
-                vp.indices[0] = TL2;        
-                vp.indices[1] = TR2;
-                connected                        = true;
-            }
-            // vp1 on right
-            if (TR1 == TL2 && BR1 == BL2) {
-                vp.indices[1] = TR2;        
-                vp.indices[2] = BR2;
-                connected                        = true;
-            }
-            // vp1 on left 
-            if (TL1 == TR2 && BL1 == BR2) {
-                vp.indices[0] = TL2;        
-                vp.indices[3] = BL2;
-                connected                        = true;
-            }
-            return connected;
-        }
+   bool MergePoints(ref Face vp, ref Face vp1) {
+        var TL1 = vp.indices[0];
+        var TR1 = vp.indices[1];
+        var BR1 = vp.indices[2];
+        var BL1 = vp.indices[3];
+                 
+        var TL2 = vp1.indices[0];
+        var TR2 = vp1.indices[1];
+        var BR2 = vp1.indices[2];
+        var BL2 = vp1.indices[3];
         
-    void EvalualatePoints(Face vp, ref List<Face> list) {
+        bool connected = false;
+
+        // vp1 on bottom        
+        if (BL1 == TL2 && BR1 == TR2) {
+            vp.indices[2] = BR2;        
+            vp.indices[3] = BL2;
+            connected = true;
+        }
+        // vp1 on top
+        if (TL1 == BL2 && TR1 == BR2) {
+            vp.indices[0] = TL2;        
+            vp.indices[1] = TR2;
+            connected = true;
+        }
+        // vp1 on right
+        if (TR1 == TL2 && BR1 == BL2) {
+            vp.indices[1] = TR2;        
+            vp.indices[2] = BR2;
+            connected = true;
+        }
+        // vp1 on left 
+        if (TL1 == TR2 && BL1 == BR2) {
+            vp.indices[0] = TL2;        
+            vp.indices[3] = BL2;
+            connected = true;
+        }
+        return connected;
+    }
+        
+    void EvaluatePoints(Face vp, ref List<Face> list) {
         for (int k = 0; k < list.Count; k++) {
             var vp1 = list[k];
             if (MergePoints(ref vp1, ref vp)) {
@@ -205,7 +203,7 @@ public class Points {
                         });
                     break;
             }
-            EvalualatePoints(p.Faces[checkType], ref ps);
+            EvaluatePoints(p.Faces[checkType], ref ps);
             Hop(ref ps, p.Position, step, checkType);
             PointsList[(next).Key()].FacesChecked[checkType] = true;
         }

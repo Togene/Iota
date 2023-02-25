@@ -1,7 +1,254 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 
+
+public class Trixel {
+    
+}
+
+
+public enum FaceType {X, Y, Z}
+
+public class TrixelFace {
+    private FaceType  Type;
+    private Vector3[] Vertices;
+    private Vector3[] Normals;
+
+    private float T, B, L, R;
+    public TrixelFace(FaceType t, Vector3 tl, Vector3 tr, Vector3 br, Vector3 bl) {
+        Vertices = new []{tl, tr, br, bl};
+        
+        T = Vertices[0].y;
+        B = Vertices[3].y;
+        L = Vertices[0].x;
+        R = Vertices[1].x;
+        
+        var normal = CalculateNormal();
+        Normals = new[] { normal, normal, normal, normal};
+
+        Type = t;
+    }
+
+    public bool Contains(Vector3 v) {
+        return v.x < L && v.x > R &&
+               v.y > B && v.y < T;
+    }
+    
+    public TrixelFace[] OpenSailWalk(Vector3 v) {
+        Debug.Log($"making the sail!");
+
+        float pixelStep = 0.5f;
+        
+        return new[] {
+            // top face
+            new TrixelFace(
+                Type,
+                new Vector3(v.x + pixelStep, T, v.z), 
+                new Vector3(v.x - pixelStep, T, v.z), 
+                new Vector3(v.x - pixelStep, v.y + pixelStep, v.z), 
+                new Vector3(v.x + pixelStep, v.y + pixelStep, v.z)
+            ),
+            // top left face
+            new TrixelFace(
+                Type,
+                Vertices[0],
+                new Vector3(v.x + pixelStep, T, v.z),
+                new Vector3(v.x + pixelStep, v.y + pixelStep, v.z), 
+                new Vector3(L, v.y + pixelStep, v.z)
+            ),
+            // left face
+            new TrixelFace(
+                Type,
+                new Vector3(L, v.y + pixelStep, v.z),
+                new Vector3(v.x + pixelStep, v.y + pixelStep, v.z), 
+                new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
+                new Vector3(L, v.y - pixelStep, v.z)
+            ),
+            // bottom left face
+            new TrixelFace(
+                Type,
+                new Vector3(L, v.y - pixelStep, v.z),
+                new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
+                new Vector3(v.x + pixelStep, B, v.z),
+                Vertices[3]
+            ),
+            // bottom face
+            new TrixelFace(
+                Type,
+                new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
+                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z), 
+                new Vector3(v.x - pixelStep, B, v.z), 
+                new Vector3(v.x + pixelStep, B, v.z)
+            ),
+            // bottom right face
+            new TrixelFace(
+                Type,
+                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
+                new Vector3(R, v.y - pixelStep, v.z), 
+                Vertices[2],
+                new Vector3(v.x - pixelStep, B, v.z)
+            ),
+            // right face
+            new TrixelFace(
+                Type,
+                new Vector3(v.x - pixelStep, v.y + pixelStep, v.z),
+                new Vector3(R, v.y + pixelStep, v.z), 
+                new Vector3(R, v.y - pixelStep, v.z), 
+                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z)
+            ),
+            // Top right face
+            new TrixelFace(
+                Type,
+                new Vector3(v.x - pixelStep, T, v.z), 
+                Vertices[1],
+                new Vector3(R, v.y + pixelStep, v.z),
+                new Vector3(v.x - pixelStep, v.y + pixelStep, v.z)
+            ),
+        };
+
+    }
+    
+    public Vector3[] DumpVertices() {
+        return Vertices;
+    }
+    public Vector3[] DumpNormals() {
+        return Normals;
+    }
+    public int[] DumpIndces(int step) {
+        return new [] {
+            0 + step, 2 + step, 1 + step,
+            0 + step, 3 + step, 2 + step
+        };
+    }
+    public Vector3 CalculateNormal() {
+        return Helpers.GetNormal(Vertices[0], Vertices[2], Vertices[1]);
+    }
+}
+
+public class TrixelBlock {
+    private List<Vector3> Vertices = new();
+    private List<int>     Indices  = new();
+    private List<Vector3> Normals  = new();
+    private List<Vector2> UVS      = new();
+    
+    private Dictionary<string, TrixelFace> Faces = new();
+    private TrixelData                     Data;
+    
+    private int zCount, xCount, yCount = 0;
+    public TrixelBlock(int r) {
+        float hRes = (float)r / 2;
+        // tl - tr
+        // |     |
+        // bl - br
+        var v = new List<Vector3> {
+            // top
+            new (-hRes, +hRes, -hRes), // tl | 0
+            new (+hRes, +hRes, -hRes), // tr | 1
+            new (+hRes, +hRes, +hRes), // br | 2
+            new (-hRes, +hRes, +hRes), // bl | 3
+            // bottom
+            new (-hRes, -hRes, -hRes), // tl | 4
+            new (+hRes, -hRes, -hRes), // tr | 5
+            new (+hRes, -hRes, +hRes), // br | 6
+            new (-hRes, -hRes, +hRes), // bl | 7
+        };
+        // top
+        // Faces.Add(new Vector3(0, +hRes, 0).ExtractY(0), 
+            // new(v[0], v[1], v[2], v[3]));
+        // bottom
+        // Faces.Add(new Vector3(0, -hRes, 0).ExtractY(0), 
+            // new(v[7], v[6], v[5], v[4]));
+        // front
+        // Faces.Add(new Vector3(0, 0, +hRes).ExtractZ(zCount), 
+        //     new(v[3], v[2], v[6], v[7]));
+        // back
+        Faces.Add(
+            new Vector3(0, 0, -hRes).ExtractZ(zCount), 
+            new (FaceType.Z, v[1], v[0], v[4], v[5]));
+        // left
+        // Faces.Add(new Vector3(-hRes, 0, 0).ExtractX(0), 
+            // new(v[0], v[3], v[7], v[4]));
+        // right
+        // Faces.Add(new Vector3(+hRes, 0, 0).ExtractX(0),
+            // new(v[2], v[1], v[5], v[6]));
+
+        ParseFaces();
+    }
+
+     Tuple<string, TrixelFace> GetFace(Vector3 v) {
+         if (Faces.ContainsKey(v.ExtractX(0))) {
+            return new (v.ExtractX(0), Faces[v.ExtractX(0)]);
+        }
+
+        for (int i = 0; i <= zCount; i++) {
+             if (Faces.ContainsKey(v.ExtractZ(i)) && Faces[v.ExtractZ(i)].Contains(v)){
+                 return new (v.ExtractZ(i), Faces[v.ExtractZ(i)]);
+             }
+        }
+       
+        if (Faces.ContainsKey(v.ExtractY(0))) {
+            return new(
+                v.ExtractY(0), Faces[v.ExtractY(0)]);
+        }
+        return null;
+    }
+    
+    
+    public void Edit(Vector3 v) {
+        var maybeFace = GetFace(v);
+        if (maybeFace != null) {
+            var faces = maybeFace.Item2.OpenSailWalk(v);
+            Faces.Remove(maybeFace.Item1);
+            foreach (var newFaces in faces) {
+                Faces.Add(v.ExtractZ(zCount++), newFaces);
+            }
+        }
+        ParseFaces();
+    }
+
+    public void ParseFaces() {
+        Vertices = new();
+        Indices  = new();
+        Normals = new();
+    
+        // break face 
+        for (int i = 0; i < Faces.Values.ToArray().Length; i++) {
+            var f = Faces.Values.ToArray()[i];
+
+            var verts = f.DumpVertices();
+            Vertices.AddRange(verts);
+            Normals.AddRange(f.DumpNormals());
+            Indices.AddRange(f.DumpIndces(i*verts.Length));
+        }
+        
+        Data = new TrixelData(
+            Vertices.ToArray(),
+            Indices.ToArray(),
+            Normals.ToArray(),
+            null
+        );
+    }
+    
+    public  Mesh Render() {
+        Mesh mesh = new ();
+        mesh.vertices  = Data.v;
+        mesh.normals   = Data.n;
+        mesh.triangles = Data.i;
+        return mesh;
+    }
+
+    public void OnDrawGizmos() {
+        if (Vertices == null || Vertices.Count == 0)
+            return;
+        
+        foreach (var v in Vertices) {
+            Gizmos.DrawSphere(v, 0.125f);
+        }
+    }
+}
 
 public class Trixels {
     int                         Resolution;
@@ -162,7 +409,8 @@ public class Trixels {
             return new Vector2(lastVert.x, lastVert.z/3 + 0) + new Vector2(0.5f, 0.5f/3);
         } 
         if (dir == Vector3.left || dir == Vector3.right) {
-            return new Vector2(lastVert.z, (lastVert.y/3) + (1/3f)) + new Vector2(0.5f, 0.5f/3);
+            return new Vector2(lastVert.z, (lastVert.y/3) + (1/3f)) + 
+                   new Vector2(0.5f, 0.5f/3);
         } 
         if (dir == Vector3.forward || dir == Vector3.back) {
             return  new Vector2(lastVert.x, (lastVert.y / 3) + (2/3f)) + new Vector2(0.5f, 0.5f/3);
@@ -343,7 +591,7 @@ public class Trixels {
         // }
         //
         
-        // Gizmos.color = new Color(1,1,1,.1f);````
+        // Gizmos.color = new Color(1,1,1,.1f);
         // foreach (var p in _points.GetList()) {
         //     if (p.Value.Active) {
         //         // Gizmos.DrawWireCube(p.Value.Position, Vector3.one);
