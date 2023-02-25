@@ -119,16 +119,15 @@ public class Trixel_Edtior : MonoBehaviour {
             _direction = hit.normal;
             // snap to plane WxH and distance based on normal/facing direction
             // if we snap on all axis's the hit point hovers above the hit point
-            var step = 16/16;
+            // var step = 16/16;
             _hitPoint = new Vector3(
                 (_direction.x != 0) ? 
-                    hit.point.x : (Mathf.Round((hit.point.x - 0.5f) / step) * step) + 0.5f,
+                    hit.point.x : (Mathf.Round((hit.point.x - 0.5f))) + 0.5f,
                 (_direction.y != 0) ? 
-                    hit.point.y : (Mathf.Round((hit.point.y - 0.5f) / step) * step) + 0.5f,
+                    hit.point.y : (Mathf.Round((hit.point.y - 0.5f))) + 0.5f,
                 (_direction.z != 0) ? 
-                    hit.point.z : (Mathf.Round((hit.point.z - 0.5f) / step) * step) + 0.5f
+                    hit.point.z : (Mathf.Round((hit.point.z - 0.5f))) + 0.5f
             );
-            print($"{hit.point.x}, {_hitPoint.x}");
             return true;
         }
         return false;

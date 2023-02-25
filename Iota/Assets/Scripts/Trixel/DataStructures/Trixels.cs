@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -40,75 +41,111 @@ public class TrixelFace {
     public TrixelFace[] OpenSailWalk(Vector3 v) {
         Debug.Log($"making the sail!");
 
+
+        var newFaces = new List<TrixelFace>();
+
         float pixelStep = 0.5f;
-        
-        return new[] {
-            // top face
-            new TrixelFace(
-                Type,
-                new Vector3(v.x + pixelStep, T, v.z), 
-                new Vector3(v.x - pixelStep, T, v.z), 
-                new Vector3(v.x - pixelStep, v.y + pixelStep, v.z), 
-                new Vector3(v.x + pixelStep, v.y + pixelStep, v.z)
-            ),
-            // top left face
-            new TrixelFace(
-                Type,
-                Vertices[0],
-                new Vector3(v.x + pixelStep, T, v.z),
-                new Vector3(v.x + pixelStep, v.y + pixelStep, v.z), 
-                new Vector3(L, v.y + pixelStep, v.z)
-            ),
+
+        // is worth, or is?
+        var isLeft   = (L - (v.x - pixelStep)) - 1 >= 1;
+        var isRight  = (R - (v.x + pixelStep)) - 1 >= 1;
+        var isTop    = (T - (v.y + pixelStep)) - 1 >= 1;
+        var isBottom = (B - (v.y - pixelStep)) - 1 >= 1;
+
+        if (isLeft) {
+            Debug.Log($"left face added");
             // left face
-            new TrixelFace(
+            newFaces.Add(
+                new TrixelFace(
                 Type,
                 new Vector3(L, v.y + pixelStep, v.z),
                 new Vector3(v.x + pixelStep, v.y + pixelStep, v.z), 
                 new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
                 new Vector3(L, v.y - pixelStep, v.z)
-            ),
-            // bottom left face
-            new TrixelFace(
-                Type,
-                new Vector3(L, v.y - pixelStep, v.z),
-                new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
-                new Vector3(v.x + pixelStep, B, v.z),
-                Vertices[3]
-            ),
-            // bottom face
-            new TrixelFace(
-                Type,
-                new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
-                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z), 
-                new Vector3(v.x - pixelStep, B, v.z), 
-                new Vector3(v.x + pixelStep, B, v.z)
-            ),
-            // bottom right face
-            new TrixelFace(
-                Type,
-                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
-                new Vector3(R, v.y - pixelStep, v.z), 
-                Vertices[2],
-                new Vector3(v.x - pixelStep, B, v.z)
-            ),
+            ));
+        }
+        if (isRight) {
+            Debug.Log($"right face added");
             // right face
-            new TrixelFace(
+            newFaces.Add(new TrixelFace(
                 Type,
                 new Vector3(v.x - pixelStep, v.y + pixelStep, v.z),
-                new Vector3(R, v.y + pixelStep, v.z), 
-                new Vector3(R, v.y - pixelStep, v.z), 
-                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z)
-            ),
-            // Top right face
-            new TrixelFace(
-                Type,
-                new Vector3(v.x - pixelStep, T, v.z), 
-                Vertices[1],
                 new Vector3(R, v.y + pixelStep, v.z),
-                new Vector3(v.x - pixelStep, v.y + pixelStep, v.z)
-            ),
-        };
-
+                new Vector3(R, v.y - pixelStep, v.z),
+                new Vector3(v.x - pixelStep, v.y - pixelStep, v.z)
+            ));
+        }
+        if (isTop) {
+            Debug.Log($"top face added");
+            // top face
+            newFaces.Add(new TrixelFace(
+                Type,
+                new Vector3(v.x + pixelStep, T, v.z),
+                new Vector3(v.x - pixelStep, T, v.z),
+                new Vector3(v.x - pixelStep, v.y + pixelStep, v.z),
+                new Vector3(v.x + pixelStep, v.y + pixelStep, v.z)
+            ));
+        }
+        if (isBottom) {
+            Debug.Log($"bottom face added");
+            // bottom face
+            newFaces.Add( 
+                new TrixelFace(
+                    Type,
+                    new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
+                    new Vector3(v.x - pixelStep, v.y - pixelStep, v.z), 
+                    new Vector3(v.x - pixelStep, B, v.z), 
+                    new Vector3(v.x + pixelStep, B, v.z)
+                ));
+        }
+        // Top right face
+        if (isTop && isRight) {
+            Debug.Log($"top right face added");
+            newFaces.Add(
+                new TrixelFace(
+                    Type,
+                    new Vector3(v.x - pixelStep, T, v.z), 
+                    Vertices[1],
+                    new Vector3(R, v.y + pixelStep, v.z),
+                    new Vector3(v.x - pixelStep, v.y + pixelStep, v.z)
+                ));
+        }
+        // top left face
+        if (isTop && isLeft) {
+            Debug.Log($"top left face added");
+            newFaces.Add(
+                new TrixelFace(
+                    Type,
+                    Vertices[0],
+                    new Vector3(v.x + pixelStep, T, v.z),
+                    new Vector3(v.x + pixelStep, v.y + pixelStep, v.z), 
+                    new Vector3(L, v.y + pixelStep, v.z)
+                ));
+        }
+        // bottom left face
+        if (isBottom && isLeft) {
+            Debug.Log($"bottom left face added");
+            newFaces.Add(
+                new TrixelFace(
+                    Type,
+                    new Vector3(L, v.y - pixelStep, v.z),
+                    new Vector3(v.x + pixelStep, v.y - pixelStep, v.z), 
+                    new Vector3(v.x + pixelStep, B, v.z),
+                    Vertices[3]
+                ));
+        }
+        if (isBottom && isRight) {
+            Debug.Log($"bottom right face added");
+            newFaces.Add(
+                new TrixelFace(
+                    Type,
+                    new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
+                    new Vector3(R, v.y - pixelStep, v.z), 
+                    Vertices[2],
+                    new Vector3(v.x - pixelStep, B, v.z)
+                ));
+        }
+        return newFaces.ToArray();
     }
     
     public Vector3[] DumpVertices() {
@@ -134,10 +171,10 @@ public class TrixelBlock {
     private List<Vector3> Normals  = new();
     private List<Vector2> UVS      = new();
     
-    private Dictionary<string, TrixelFace> Faces = new();
+    private Dictionary<string, List<TrixelFace>> Faces = new();
     private TrixelData                     Data;
     
-    private int zCount, xCount, yCount = 0;
+    // private int zCount, xCount, yCount = 0;
     public TrixelBlock(int r) {
         float hRes = (float)r / 2;
         // tl - tr
@@ -164,10 +201,12 @@ public class TrixelBlock {
         // front
         // Faces.Add(new Vector3(0, 0, +hRes).ExtractZ(zCount), 
         //     new(v[3], v[2], v[6], v[7]));
-        // back
         Faces.Add(
-            new Vector3(0, 0, -hRes).ExtractZ(zCount), 
-            new (FaceType.Z, v[1], v[0], v[4], v[5]));
+            new Vector3(0, 0, -hRes).ExtractZ(0), 
+             new List<TrixelFace>() {
+                 // back
+                 new (FaceType.Z, v[1], v[0], v[4], v[5])
+             });
         // left
         // Faces.Add(new Vector3(-hRes, 0, 0).ExtractX(0), 
             // new(v[0], v[3], v[7], v[4]));
@@ -178,21 +217,21 @@ public class TrixelBlock {
         ParseFaces();
     }
 
-     Tuple<string, TrixelFace> GetFace(Vector3 v) {
-         if (Faces.ContainsKey(v.ExtractX(0))) {
-            return new (v.ExtractX(0), Faces[v.ExtractX(0)]);
+    Tuple<string, TrixelFace> GetFace(Vector3 v) {
+        // if (Faces.ContainsKey(v.ExtractX(0))) {
+        //     return new(v.ExtractX(0), Faces[v.ExtractX(0)]);
+        // }
+        if (Faces.ContainsKey(v.ExtractZ(0))){
+            // Faces[v.ExtractZ(0)].Contains(v)
+            foreach (var face in Faces[v.ExtractZ(0)]) {
+                if (face.Contains(v)) {
+                    return new (v.ExtractZ(0), face); 
+                }
+            }
         }
-
-        for (int i = 0; i <= zCount; i++) {
-             if (Faces.ContainsKey(v.ExtractZ(i)) && Faces[v.ExtractZ(i)].Contains(v)){
-                 return new (v.ExtractZ(i), Faces[v.ExtractZ(i)]);
-             }
-        }
-       
-        if (Faces.ContainsKey(v.ExtractY(0))) {
-            return new(
-                v.ExtractY(0), Faces[v.ExtractY(0)]);
-        }
+        // if (Faces.ContainsKey(v.ExtractY(0))) {
+        //      return new (v.ExtractY(0), Faces[v.ExtractY(0)]);
+        // }
         return null;
     }
     
@@ -200,11 +239,10 @@ public class TrixelBlock {
     public void Edit(Vector3 v) {
         var maybeFace = GetFace(v);
         if (maybeFace != null) {
-            var faces = maybeFace.Item2.OpenSailWalk(v);
-            Faces.Remove(maybeFace.Item1);
-            foreach (var newFaces in faces) {
-                Faces.Add(v.ExtractZ(zCount++), newFaces);
+            foreach (var newFaces in maybeFace.Item2.OpenSailWalk(v)) {
+                Faces[maybeFace.Item1].Add(newFaces);
             }
+            Faces[maybeFace.Item1].Remove(maybeFace.Item2);
         }
         ParseFaces();
     }
@@ -213,17 +251,20 @@ public class TrixelBlock {
         Vertices = new();
         Indices  = new();
         Normals = new();
-    
-        // break face 
-        for (int i = 0; i < Faces.Values.ToArray().Length; i++) {
-            var f = Faces.Values.ToArray()[i];
-
-            var verts = f.DumpVertices();
-            Vertices.AddRange(verts);
-            Normals.AddRange(f.DumpNormals());
-            Indices.AddRange(f.DumpIndces(i*verts.Length));
-        }
         
+        // break face 
+        for (int x = 0; x < Faces.Values.ToArray().Length; x++) {
+            var faces = Faces.Values.ToArray()[x];
+            Debug.Log(faces.Count);
+            for (int i = 0; i < faces.ToArray().Length; i++) {
+                var f = faces.ToArray()[i];
+                
+                var verts = f.DumpVertices();
+                Vertices.AddRange(verts);
+                Normals.AddRange(f.DumpNormals());
+                Indices.AddRange(f.DumpIndces(i * verts.Length));
+            }
+        }
         Data = new TrixelData(
             Vertices.ToArray(),
             Indices.ToArray(),
