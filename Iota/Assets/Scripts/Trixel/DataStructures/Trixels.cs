@@ -37,17 +37,57 @@ public class TrixelFace {
         return v.x < L && v.x > R &&
                v.y > B && v.y < T;
     }
+
+    public bool Connect(TrixelFace other) {
+        var TL1 = Vertices[0];
+        var TR1 = Vertices[1];
+        var BR1 = Vertices[2];
+        var BL1 = Vertices[3];
+                 
+        var TL2 = other.Vertices[0];
+        var TR2 = other.Vertices[1];
+        var BR2 = other.Vertices[2];
+        var BL2 = other.Vertices[3];
+        
+        bool connected = false;
+
+        // vp1 on bottom        
+        if (BL1 == TL2 && BR1 == TR2) {
+            Vertices[2]    = BR2;        
+            Vertices[3] = BL2;
+            connected      = true;
+        }
+        // vp1 on top
+        if (TL1 == BL2 && TR1 == BR2) {
+            Vertices[0] = TL2;        
+            Vertices[1] = TR2;
+            connected   = true;
+        }
+        // vp1 on right
+        if (TR1 == TL2 && BR1 == BL2) {
+            Vertices[1] = TR2;        
+            Vertices[2] = BR2;
+            connected   = true;
+        }
+        // vp1 on left 
+        if (TL1 == TR2 && BL1 == BR2) {
+            Vertices[0] = TL2;        
+            Vertices[3] = BL2;
+            connected   = true;
+        }
+        return connected;
+    }
     
     public TrixelFace[] OpenSailWalk(Vector3 v) {
         Debug.Log($"making the sail!");
-        var newFaces = new List<TrixelFace>();
-
+        var   newFaces  = new List<TrixelFace>();
         float pixelStep = 0.5f;
+
         // is worth, or is?
-        var isLeft   = Mathf.Abs(L - (v.x - pixelStep)) - 1 >= 1;
-        var isRight  = Mathf.Abs(R - (v.x + pixelStep)) - 1 >= 1;
-        var isTop    = Mathf.Abs(T - (v.y + pixelStep)) - 1 >= 1;
-        var isBottom = Mathf.Abs(B - (v.y - pixelStep)) - 1 >= 1;
+        var isLeft   = Mathf.Abs(L - (v.x - pixelStep)) >= 1;
+        var isRight  = Mathf.Abs(R - (v.x + pixelStep)) >= 1;
+        var isTop    = Mathf.Abs(T - (v.y + pixelStep)) >= 1;
+        var isBottom = Mathf.Abs(B - (v.y - pixelStep)) >= 1;
 
         if (isLeft) {
             Debug.Log($"left face added");
@@ -233,13 +273,27 @@ public class TrixelBlock {
     }
     
     
-    public void Edit(Vector3 v) {
+    public void Edit(Vector3 v, bool invert) {
         var maybeFace = GetFace(v);
-        if (maybeFace != null) {
-            foreach (var newFaces in maybeFace.Item2.OpenSailWalk(v)) {
-                Faces[maybeFace.Item1].Add(newFaces);
+        if (invert) {
+            if (maybeFace == null) {
+                float pixelStep = 0.5f;
+                Faces[v.ExtractZ(0)].Add(
+                    new TrixelFace(
+                        FaceType.Z,
+                        new Vector3(v.x + pixelStep, v.y + pixelStep, v.z),
+                        new Vector3(v.x - pixelStep, v.y + pixelStep, v.z),
+                        new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
+                        new Vector3(v.x + pixelStep, v.y - pixelStep, v.z)
+                    ));
             }
-            Faces[maybeFace.Item1].Remove(maybeFace.Item2);
+        } else {
+            if (maybeFace != null) {
+                foreach (var newFaces in maybeFace.Item2.OpenSailWalk(v)) {
+                    Faces[maybeFace.Item1].Add(newFaces);
+                }
+                Faces[maybeFace.Item1].Remove(maybeFace.Item2);
+            } 
         }
         ParseFaces();
     }

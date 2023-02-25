@@ -141,6 +141,7 @@ public class Trixel_Edtior : MonoBehaviour {
     void New() {
         // _selectedBlock = new Block(Vector3.zero, SpriteXYZ);
         RenderOut();
+        mc.sharedMesh = mf.mesh;
     }
 
     void LateUpdate() { }
@@ -193,13 +194,13 @@ public class Trixel_Edtior : MonoBehaviour {
         if (MouseSelect()) {
             // creating null point
             if (Input.GetMouseButtonDown(0)) {
-                EditBlock.Edit(_hitPoint); // - _direction/2
+                EditBlock.Edit(_hitPoint, false); // - _direction/2
                 RenderOut();
             }
         
             // removing null point
             if (Input.GetMouseButtonDown(1)) {
-                EditBlock.Edit(_hitPoint); // - _direction/2
+                EditBlock.Edit(_hitPoint, true); // - _direction/2
                 RenderOut();
             }
         }
@@ -229,7 +230,7 @@ public class Trixel_Edtior : MonoBehaviour {
 
     public void RenderOut() {
         mf.mesh       = EditBlock.Render();
-        mc.sharedMesh = mf.mesh;
+        // mc.sharedMesh = mf.mesh;
     }
 
     public void OnClickColor() {
