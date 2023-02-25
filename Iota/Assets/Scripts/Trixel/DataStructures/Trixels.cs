@@ -40,17 +40,14 @@ public class TrixelFace {
     
     public TrixelFace[] OpenSailWalk(Vector3 v) {
         Debug.Log($"making the sail!");
-
-
         var newFaces = new List<TrixelFace>();
 
         float pixelStep = 0.5f;
-
         // is worth, or is?
-        var isLeft   = (L - (v.x - pixelStep)) - 1 >= 1;
-        var isRight  = (R - (v.x + pixelStep)) - 1 >= 1;
-        var isTop    = (T - (v.y + pixelStep)) - 1 >= 1;
-        var isBottom = (B - (v.y - pixelStep)) - 1 >= 1;
+        var isLeft   = Mathf.Abs(L - (v.x - pixelStep)) - 1 >= 1;
+        var isRight  = Mathf.Abs(R - (v.x + pixelStep)) - 1 >= 1;
+        var isTop    = Mathf.Abs(T - (v.y + pixelStep)) - 1 >= 1;
+        var isBottom = Mathf.Abs(B - (v.y - pixelStep)) - 1 >= 1;
 
         if (isLeft) {
             Debug.Log($"left face added");
