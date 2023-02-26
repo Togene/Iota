@@ -82,16 +82,24 @@ public class TrixelFace {
         Debug.Log($"making the sail!");
         var   newFaces  = new List<TrixelFace>();
         float pixelStep = 0.5f;
-
+        
         // is worth, or is?
-        var isLeft   = Mathf.Abs(L - (v.x - pixelStep)) >= 1;
-        var isRight  = Mathf.Abs(R - (v.x + pixelStep)) >= 1;
-        var isTop    = Mathf.Abs(T - (v.y + pixelStep)) >= 1;
-        var isBottom = Mathf.Abs(B - (v.y - pixelStep)) >= 1;
-
+        var isLeft   = Mathf.Abs((L) - (v.x)) >= 1;
+        var isRight  = Mathf.Abs((R) - (v.x)) >= 1;
+        var isTop    = Mathf.Abs((T) - (v.y)) >= 1;
+        var isBottom = Mathf.Abs((B) - (v.y)) >= 1;
+        
+        // Debug.Log(
+        //     $"{v} || " +
+        //     $"L {Mathf.Abs((L) - (v.x))} || " +
+        //     $"R {Mathf.Abs((R) - (v.x))} || " +
+        //     $"T {Mathf.Abs((T) - (v.y))} || " + 
+        //     $"B {Mathf.Abs((B) - (v.y))} || "
+        // );
+        
         if (isLeft) {
-            Debug.Log($"left face added");
-            // left face
+            // Debug.Log($"left face added");
+            // left face∂
             newFaces.Add(
                 new TrixelFace(
                 Type,
@@ -102,7 +110,7 @@ public class TrixelFace {
             ));
         }
         if (isRight) {
-            Debug.Log($"right face added");
+            // Debug.Log($"right face added");
             // right face
             newFaces.Add(new TrixelFace(
                 Type,
@@ -113,7 +121,7 @@ public class TrixelFace {
             ));
         }
         if (isTop) {
-            Debug.Log($"top face added");
+            // Debug.Log($"top face added");
             // top face
             newFaces.Add(new TrixelFace(
                 Type,
@@ -124,7 +132,7 @@ public class TrixelFace {
             ));
         }
         if (isBottom) {
-            Debug.Log($"bottom face added");
+            // Debug.Log($"bottom face added");
             // bottom face
             newFaces.Add( 
                 new TrixelFace(
@@ -137,7 +145,7 @@ public class TrixelFace {
         }
         // Top right face
         if (isTop && isRight) {
-            Debug.Log($"top right face added");
+            // Debug.Log($"top right face added");
             newFaces.Add(
                 new TrixelFace(
                     Type,
@@ -149,7 +157,7 @@ public class TrixelFace {
         }
         // top left face
         if (isTop && isLeft) {
-            Debug.Log($"top left face added");
+            // Debug.Log($"top left face added");
             newFaces.Add(
                 new TrixelFace(
                     Type,
@@ -161,7 +169,7 @@ public class TrixelFace {
         }
         // bottom left face
         if (isBottom && isLeft) {
-            Debug.Log($"bottom left face added");
+            // Debug.Log($"bottom left face added");
             newFaces.Add(
                 new TrixelFace(
                     Type,
@@ -172,7 +180,7 @@ public class TrixelFace {
                 ));
         }
         if (isBottom && isRight) {
-            Debug.Log($"bottom right face added");
+            // Debug.Log($"bottom right face added");
             newFaces.Add(
                 new TrixelFace(
                     Type,
@@ -279,13 +287,12 @@ public class TrixelBlock {
             if (maybeFace == null) {
                 float pixelStep = 0.5f;
                 Faces[v.ExtractZ(0)].Add(
-                    new TrixelFace(
-                        FaceType.Z,
-                        new Vector3(v.x + pixelStep, v.y + pixelStep, v.z),
-                        new Vector3(v.x - pixelStep, v.y + pixelStep, v.z),
-                        new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
-                        new Vector3(v.x + pixelStep, v.y - pixelStep, v.z)
-                    ));
+                    new TrixelFace( FaceType.Z,
+                    new Vector3(v.x + pixelStep, v.y + pixelStep, v.z),
+                    new Vector3(v.x - pixelStep, v.y + pixelStep, v.z), 
+                    new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
+                    new Vector3(v.x + pixelStep, v.y - pixelStep, v.z)
+                ));
             }
         } else {
             if (maybeFace != null) {
