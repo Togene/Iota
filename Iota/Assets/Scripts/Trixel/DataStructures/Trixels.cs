@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
 using Unity.VisualScripting;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 
 
@@ -14,8 +15,8 @@ public class Trixel {
 public enum FaceType {X, Y, Z}
 
 public class TrixelFace {
-    private FaceType  Type;
-    private Vector3[] Vertices;
+    public  FaceType  Type;
+    public  Vector3[] Vertices;
     private Vector3[] Normals;
 
     private float T, B, L, R;
@@ -34,50 +35,9 @@ public class TrixelFace {
     }
 
     public bool Contains(Vector3 v) {
-        return v.x < L && v.x > R &&
-               v.y > B && v.y < T;
+        return v.x < L && v.x > R && v.y > B && v.y < T;
     }
 
-    public bool Connect(TrixelFace other) {
-        var TL1 = Vertices[0];
-        var TR1 = Vertices[1];
-        var BR1 = Vertices[2];
-        var BL1 = Vertices[3];
-                 
-        var TL2 = other.Vertices[0];
-        var TR2 = other.Vertices[1];
-        var BR2 = other.Vertices[2];
-        var BL2 = other.Vertices[3];
-        
-        bool connected = false;
-
-        // vp1 on bottom        
-        if (BL1 == TL2 && BR1 == TR2) {
-            Vertices[2]    = BR2;        
-            Vertices[3] = BL2;
-            connected      = true;
-        }
-        // vp1 on top
-        if (TL1 == BL2 && TR1 == BR2) {
-            Vertices[0] = TL2;        
-            Vertices[1] = TR2;
-            connected   = true;
-        }
-        // vp1 on right
-        if (TR1 == TL2 && BR1 == BL2) {
-            Vertices[1] = TR2;        
-            Vertices[2] = BR2;
-            connected   = true;
-        }
-        // vp1 on left 
-        if (TL1 == TR2 && BL1 == BR2) {
-            Vertices[0] = TL2;        
-            Vertices[3] = BL2;
-            connected   = true;
-        }
-        return connected;
-    }
-    
     public TrixelFace[] OpenSailWalk(Vector3 v) {
         Debug.Log($"making the sail!");
         var   newFaces  = new List<TrixelFace>();
@@ -88,15 +48,7 @@ public class TrixelFace {
         var isRight  = Mathf.Abs((R) - (v.x)) >= 1;
         var isTop    = Mathf.Abs((T) - (v.y)) >= 1;
         var isBottom = Mathf.Abs((B) - (v.y)) >= 1;
-        
-        // Debug.Log(
-        //     $"{v} || " +
-        //     $"L {Mathf.Abs((L) - (v.x))} || " +
-        //     $"R {Mathf.Abs((R) - (v.x))} || " +
-        //     $"T {Mathf.Abs((T) - (v.y))} || " + 
-        //     $"B {Mathf.Abs((B) - (v.y))} || "
-        // );
-        
+
         if (isLeft) {
             // Debug.Log($"left face added");
             // left face∂
@@ -192,7 +144,6 @@ public class TrixelFace {
         }
         return newFaces.ToArray();
     }
-    
     public Vector3[] DumpVertices() {
         return Vertices;
     }
@@ -281,48 +232,141 @@ public class TrixelBlock {
     }
     
     
-    public void Edit(Vector3 v, bool invert) {
-        var maybeFace = GetFace(v);
-        if (invert) {
-            if (maybeFace == null) {
-                float pixelStep = 0.5f;
-                Faces[v.ExtractZ(0)].Add(
-                    new TrixelFace( FaceType.Z,
-                    new Vector3(v.x + pixelStep, v.y + pixelStep, v.z),
-                    new Vector3(v.x - pixelStep, v.y + pixelStep, v.z), 
-                    new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
-                    new Vector3(v.x + pixelStep, v.y - pixelStep, v.z)
-                ));
-            }
-        } else {
-            if (maybeFace != null) {
-                foreach (var newFaces in maybeFace.Item2.OpenSailWalk(v)) {
-                    Faces[maybeFace.Item1].Add(newFaces);
-                }
-                Faces[maybeFace.Item1].Remove(maybeFace.Item2);
-            } 
+    public TrixelFace Connect(ref TrixelFace i, ref TrixelFace o) {
+        var TL = i.Vertices[0];
+        var TR = i.Vertices[1];
+        var BR = i.Vertices[2];
+        var BL = i.Vertices[3];
+        
+        var oTL = o.Vertices[0];
+        var oTR = o.Vertices[1];
+        var oBR = o.Vertices[2];
+        var oBL = o.Vertices[3];
+        
+        // <- on left 
+        if (TL == oTR && BL == oBR) {
+            return new TrixelFace(
+                i.Type, oTL, i.Vertices[1], i.Vertices[2], oBL);
         }
-        ParseFaces();
+        
+        // -> on right
+        if (TR == oTL && BR == oBL) {
+            return new TrixelFace(
+                i.Type, i.Vertices[0], oTR, oBR, i.Vertices[3]);
+        }
+        
+        // ^ on top
+        if (TL == oBL && TR == oBR) {
+            return new TrixelFace(
+                i.Type, oTL, oTR, i.Vertices[2], i.Vertices[3]);
+        }
+        // v on bottom
+        if (BL == oTL && BR == oBR) {
+            return new TrixelFace(
+                i.Type, i.Vertices[0], i.Vertices[1], oBR, oBL);
+        }
+        
+        // || BL == oTL && BR == oBR
+        
+        return null;
     }
 
-    public void ParseFaces() {
-        Vertices = new();
-        Indices  = new();
-        Normals = new();
-        
-        // break face 
-        for (int x = 0; x < Faces.Values.ToArray().Length; x++) {
-            var faces = Faces.Values.ToArray()[x];
-            Debug.Log(faces.Count);
-            for (int i = 0; i < faces.ToArray().Length; i++) {
-                var f = faces.ToArray()[i];
-                
-                var verts = f.DumpVertices();
-                Vertices.AddRange(verts);
-                Normals.AddRange(f.DumpNormals());
-                Indices.AddRange(f.DumpIndces(i * verts.Length));
+    public bool MergeFaces(ref TrixelFace newFace, List<TrixelFace> list) {
+        var connected = false;
+        for (int i = 0; i < list.Count; i++) {
+            // connection test, if new face, add new face and remove current
+            var currentFace   = list[i];
+            var connectedFace = Connect(ref newFace, ref currentFace);
+            
+            if (connectedFace != null) {
+                list.Remove(currentFace);
+                newFace = connectedFace;
+                connected = true;
             }
         }
+        return connected;
+    }
+
+    public void CleanFaces(string key, int iterations = 4) {
+        for (int u = 0; u < iterations; u++) {
+            // per face, after initial merging, do another round and check
+            for (int k = 0; k < Faces[key].ToList().Count; k++) {
+                var newFace   = Faces[key][k];
+                var faceStore = newFace;
+                if (MergeFaces(ref newFace, Faces[key])) {
+                    Faces[key].Remove(faceStore);
+                    Faces[key].Add(newFace);
+                }
+            }
+        }
+    }
+    
+    public void Edit(Vector3 v, bool invert) {
+            var maybeFace = GetFace(v);
+            // split face if found
+            if (maybeFace != null) {
+                if (!invert) {
+                    var newFaces = new TrixelFace[]{};
+                    newFaces = maybeFace.Item2.OpenSailWalk(v);
+                
+                
+                    // per new face attempt to merge with eixisting faces
+                    for (int k = 0; k < newFaces.Length; k++) {
+                        var newFace = newFaces[k];
+                        MergeFaces(ref newFace, Faces[maybeFace.Item1]);
+                        Faces[maybeFace.Item1].Add(newFace);
+                    }
+
+                    CleanFaces(maybeFace.Item1, 4);
+
+                    // remove split face, probs should do a check
+                    var key = maybeFace.Item1;
+                    Faces[key].Remove(maybeFace.Item2);
+                    ParseFaces(key);
+                }
+            }
+            else {
+                if (invert) {
+                    var   key       = v.ExtractZ(0);
+                    float pixelStep = 0.5f;
+                    Faces[key].AddRange(new TrixelFace[] {
+                        new ( FaceType.Z,
+                            new Vector3(v.x + pixelStep, v.y + pixelStep, v.z),
+                            new Vector3(v.x - pixelStep, v.y + pixelStep, v.z), 
+                            new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
+                            new Vector3(v.x + pixelStep, v.y - pixelStep, v.z)
+                        ),
+                    });
+                    CleanFaces(key, 4);
+                    ParseFaces();
+                }
+            }
+    }
+
+    public void ParseFaces(string faceKey = "") {
+        Vertices = new();
+        Indices  = new();
+        Normals  = new();
+        
+        var faces = new List<TrixelFace>();
+       
+        if (faceKey == "") {
+            foreach (var f in Faces.Values) {
+                faces.AddRange(f);
+            }
+        }
+        else {
+            faces = Faces[faceKey];
+        }
+        
+        for (int i = 0; i < faces.Count; i++) {
+            var verts = faces[i].DumpVertices();
+            Vertices.AddRange(verts);
+            Normals.AddRange(faces[i].DumpNormals());
+            Indices.AddRange(faces[i].DumpIndces(i * verts.Length));
+        }
+        
+    
         Data = new TrixelData(
             Vertices.ToArray(),
             Indices.ToArray(),
