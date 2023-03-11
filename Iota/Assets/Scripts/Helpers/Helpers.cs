@@ -9,6 +9,16 @@ using UnityEngine;
 
 // https://www.theappguruz.com/blog/simple-cube-mesh-generation-unity3d
 public static class Helpers {
+    public static TrixelFace NewFace(FaceType t, Vector3 v, Vector3 dir) {
+        float pixelStep = 0.5f;
+        return new(t,
+            new Vector3(v.x + pixelStep, v.y + pixelStep, v.z),
+            new Vector3(v.x - pixelStep, v.y + pixelStep, v.z),
+            new Vector3(v.x - pixelStep, v.y - pixelStep, v.z),
+            new Vector3(v.x + pixelStep, v.y - pixelStep, v.z)
+        );
+    }
+    
     public static Vector3[] Transform(this Vector3[] v, Vector3 p) {
         for(int i = 0; i < v.Length; i++){
             v[i] += p;

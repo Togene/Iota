@@ -194,13 +194,13 @@ public class Trixel_Edtior : MonoBehaviour {
         if (MouseSelect()) {
             // creating null point
             if (Input.GetMouseButtonDown(0)) {
-                EditBlock.Edit(_hitPoint, false); // - _direction/2
+                EditBlock.Edit(_hitPoint - _direction/2, false); // - _direction/2
                 RenderOut();
             }
         
             // removing null point
             if (Input.GetMouseButtonDown(1)) {
-                EditBlock.Edit(_hitPoint, true); // - _direction/2
+                EditBlock.Edit(_hitPoint - _direction/2, true); // - _direction/2
                 RenderOut();
             }
         }
