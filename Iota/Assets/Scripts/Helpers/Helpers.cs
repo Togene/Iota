@@ -19,6 +19,18 @@ public static class Helpers {
         );
     }
     
+    // return a cubic plane extractions of vector keys
+    public static Dictionary<string, string> CubicExtract(this Vector3 c, int id = 0) {
+        return new Dictionary<string, string> {
+            { "back",  (c + Vector3.back/2).ExtractZ(id) },
+            { "front", (c + Vector3.forward/2).ExtractZ(id) },
+            { "top",   (c + Vector3.up/2).ExtractY(id) },
+            { "down",  (c + Vector3.down/2).ExtractY(id) },
+            { "left",  (c + Vector3.left/2).ExtractX(id) },
+            { "right", (c + Vector3.right/2).ExtractX(id)},
+        };
+    } 
+    
     public static Vector3[] Transform(this Vector3[] v, Vector3 p) {
         for(int i = 0; i < v.Length; i++){
             v[i] += p;
